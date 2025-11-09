@@ -1,0 +1,31 @@
+# QMI Helpers Compatibility Assessment
+
+## MSM-5.4 Kernel QMI Implementation
+- Location: drivers/soc/qcom/qmi_interface.c, drivers/soc/qcom/qmi_encdec.c
+- Header: include/linux/soc/qcom/qmi.h
+- Status: PRESENT and FUNCTIONAL
+
+## Key Functions Available:
+- qmi_handle_init() - Initialize QMI client handle
+- qmi_txn_init() - Initialize QMI transaction
+- qmi_txn_wait() - Wait for transaction completion
+- qmi_txn_cancel() - Cancel transaction
+- qmi_send_request() - Send QMI request
+- qmi_add_server() - Register service with name service
+
+## Compatibility with ath11k (kernel 5.19):
+The ath11k driver from kernel 5.19 uses standard QMI helper APIs that are
+already present in MSM-5.4. The QMI interface is stable and compatible.
+
+## Decision:
+**USE NATIVE MSM-5.4 QMI HELPERS** - No backporting needed
+
+The existing QMI implementation in MSM-5.4 provides all the necessary
+functions that ath11k requires. The ath11k driver should be configured
+to use the native QCOM_QMI_HELPERS from the kernel.
+
+## Configuration:
+In Kconfig, ath11k will depend on:
+- select QCOM_QMI_HELPERS (native MSM-5.4 implementation)
+
+No additional QMI sources need to be extracted from kernel 5.19.

@@ -1,0 +1,41 @@
+# Backports Source Information
+
+## Source Kernel Version
+- Kernel Version: 5.19
+- Source: https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+- Tag: v5.19
+
+## Extracted Components
+
+### ath11k Driver
+- Location: backports/drivers/net/wireless/ath/ath11k/
+- Files: 29 C source files + headers
+- WCN6750 Support: YES (confirmed in ahb.c, core.c, hw.c, qmi.c)
+- Device Tree Compatible: "qcom,wcn6750-wifi"
+- Hardware Revision: ATH11K_HW_WCN6750_HW10
+
+### Key Files for WCN6750:
+- ahb.c: AHB bus interface with WCN6750 device ID
+- core.c: Hardware parameters for WCN6750
+- hw.c: WCN6750-specific operations and register definitions
+- qmi.c: QMI service instance ID for WCN6750
+- pcic.c: PCI common code with WCN6750 MSI configuration
+
+## Dependencies Required:
+- QCOM_QMI_HELPERS (from kernel)
+- MAC80211 (existing in MSM-5.4)
+- CFG80211 (existing in MSM-5.4)
+- REMOTEPROC (for AHB variant)
+- MHI_BUS (for PCI variant, optional for AHB)
+- QRTR + QRTR_MHI (for PCI variant, may be needed for AHB)
+
+## Firmware Path:
+- Directory: WCN6750/hw1.0/
+- Board data size: 256KB
+- Calibration offset: 128KB
+- BDF address: 0x4B0C0000
+
+## Next Steps:
+1. Set up backports compatibility layer
+2. Extract QMI helper dependencies
+3. Create build configuration system

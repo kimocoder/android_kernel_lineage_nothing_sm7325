@@ -1,0 +1,236 @@
+# Backports Makefile Integration
+# This Makefile provides build rules for backported ath11k_ahb driver
+# and its dependencies, integrating with the kernel build system.
+#
+# Usage:
+#   From kernel root: make backports_modules
+#   Or include this file in kernel Makefile infrastructure
+
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
+
+# Load build configuration
+-include $(src)/backports/build.config
+
+# Backports source directory
+BACKPORTS_DIR := backports
+
+# Compatibility layer
+BACKPORTS_COMPAT_DIR := $(BACKPORTS_DIR)/backport/compat
+BACKPORTS_INCLUDE_DIR := $(BACKPORTS_DIR)/backport/backport-include
+
+# ============================================================================
+# COMPILER FLAGS
+# ============================================================================
+
+# Add backports include paths
+ccflags-y += -I$(src)/$(BACKPORTS_INCLUDE_DIR)
+ccflags-y += -I$(src)/$(BACKPORTS_COMPAT_DIR)
+ccflags-y += -I$(src)/$(BACKPORTS_DIR)
+
+# Enable backports compatibility layer
+ccflags-y += -DBACKPORTS_VERSION=\"$(shell cat $(src)/$(BACKPORTS_DIR)/BACKPORTS_SOURCE.txt 2>/dev/null || echo unknown)\"
+ccflags-y += -DBACKPORT_KERNEL_VERSION=\"5.15\"
+ccflags-y += -DBACKPORT_TARGET_KERNEL=\"5.4\"
+
+# Debug flags (if enabled)
+ifeq ($(BACKPORTS_DEBUG),y)
+    ccflags-y += -DDEBUG -g
+endif
+
+# ============================================================================
+# MODULE CONFIGURATION
+# ============================================================================
+
+# Module naming strategy
+ifeq ($(BACKPORTS_MODULE_NAMING),prefix)
+    # Add _bp suffix to module names
+    ATH11K_MODULE_NAME := ath11k_bp
+    ATH11K_AHB_MODULE_NAME := ath11k_ahb_bp
+else ifeq ($(BACKPORTS_MODULE_NAMING),subdir)
+    # Use subdirectory (modules installed to backports/)
+    # Module names remain standard
+    ATH11K_MODULE_NAME := ath11k
+    ATH11K_AHB_MODULE_NAME := ath11k_ahb
+else
+    # No naming changes (default)
+    ATH11K_MODULE_NAME := ath11k
+    ATH11K_AHB_MODULE_NAME := ath11k_ahb
+endif
+
+# ============================================================================
+# CONDITIONAL DEPENDENCIES
+# ============================================================================
+
+# QRTR - Use native or backported
+ifneq ($(BACKPORTS_USE_NATIVE_QRTR),yes)
+    obj-$(BACKPORTS_ENABLE) += $(BACKPORTS_DIR)/net/qrtr/
+    ccflags-y += -DBACKPORTS_QRTR
+endif
+
+# MHI - Use native or backported
+ifneq ($(BACKPORTS_USE_NATIVE_MHI),yes)
+    obj-$(BACKPORTS_ENABLE) += $(BACKPORTS_DIR)/drivers/bus/mhi/
+    ccflags-y += -DBACKPORTS_MHI
+endif
+
+# QMI Helpers - Always use backported version for ath11k
+ifeq ($(BACKPORTS_QMI_HELPERS),y)
+    obj-$(BACKPORTS_ENABLE) += $(BACKPORTS_DIR)/net/qrtr/qmi_helpers.o
+    ccflags-y += -DBACKPORTS_QMI_HELPERS
+endif
+
+# ============================================================================
+# ATH11K DRIVER MODULES
+# ============================================================================
+
+# ath11k core module
+ifeq ($(BACKPORTS_ATH11K),y)
+    obj-m += $(ATH11K_MODULE_NAME).o
+    
+    # Core source files
+    $(ATH11K_MODULE_NAME)-y := $(BACKPORTS_DIR)/drivers/net/wireless/ath/ath11k/core.o \
+                               $(BACKPORTS_DIR)/drivers/net/wireless/ath/ath11k/hal.o \
+                               $(BACKPORTS_DIR)/drivers/net/wireless/ath/ath11k/hal_tx.o \
+                               $(BACKPORTS_DIR)/drivers/net/wireless/ath/ath11k/hal_rx.o \
+                               $(BACKPORTS_DIR)/drivers/net/wireless/ath/ath11k/wmi.o \
+                               $(BACKPORTS_DIR)/drivers/net/wireless/ath/ath11k/mac.o \
+                               $(BACKPORTS_DIR)/drivers/net/wireless/ath/ath11k/reg.o \
+                               $(BACKPORTS_DIR)/drivers/net/wireless/ath/ath11k/htc.o \
+                               $(BACKPORTS_DIR)/drivers/net/wireless/ath/ath11k/qmi.o \
+                               $(BACKPORTS_DIR)/drivers/net/wireless/ath/ath11k/dp.o \
+                               $(BACKPORTS_DIR)/drivers/net/wireless/ath/ath11k/dp_tx.o \
+                               $(BACKPORTS_DIR)/drivers/net/wireless/ath/ath11k/dp_rx.o \
+                               $(BACKPORTS_DIR)/drivers/net/wireless/ath/ath11k/debug.o \
+                               $(BACKPORTS_DIR)/drivers/net/wireless/ath/ath11k/ce.o \
+                               $(BACKPORTS_DIR)/drivers/net/wireless/ath/ath11k/peer.o \
+                               $(BACKPORTS_DIR)/drivers/net/wireless/ath/ath11k/dbring.o \
+                               $(BACKPORTS_DIR)/drivers/net/wireless/ath/ath11k/hw.o
+    
+    # Spectral scan support
+    $(ATH11K_MODULE_NAME)-y += $(BACKPORTS_DIR)/drivers/net/wireless/ath/ath11k/spectral.o
+    
+    # Thermal management
+    $(ATH11K_MODULE_NAME)-$(CONFIG_THERMAL) += $(BACKPORTS_DIR)/drivers/net/wireless/ath/ath11k/thermal.o
+endif
+
+# ath11k AHB bus module
+ifeq ($(BACKPORTS_ATH11K_AHB),y)
+    obj-m += $(ATH11K_AHB_MODULE_NAME).o
+    
+    $(ATH11K_AHB_MODULE_NAME)-y := $(BACKPORTS_DIR)/drivers/net/wireless/ath/ath11k/ahb.o
+    
+    # Module dependencies
+    # The AHB module depends on the core ath11k module
+    $(ATH11K_AHB_MODULE_NAME)-y += $(BACKPORTS_DIR)/drivers/net/wireless/ath/ath11k/ahb_platform.o
+endif
+
+# ============================================================================
+# MODULE DEPENDENCIES DECLARATION
+# ============================================================================
+
+# Declare module dependencies for proper loading order
+# Format: MODULE_DEPENDS = "dep1 dep2 dep3"
+
+# ath11k core dependencies
+$(ATH11K_MODULE_NAME)-deps := cfg80211 mac80211
+
+# Add backported dependencies if not using native
+ifneq ($(BACKPORTS_USE_NATIVE_QRTR),yes)
+    $(ATH11K_MODULE_NAME)-deps += qrtr
+endif
+
+ifneq ($(BACKPORTS_USE_NATIVE_MHI),yes)
+    $(ATH11K_MODULE_NAME)-deps += mhi
+endif
+
+ifeq ($(BACKPORTS_QMI_HELPERS),y)
+    $(ATH11K_MODULE_NAME)-deps += qmi_helpers
+endif
+
+# ath11k_ahb dependencies
+$(ATH11K_AHB_MODULE_NAME)-deps := $(ATH11K_MODULE_NAME)
+
+# ============================================================================
+# BUILD RULES
+# ============================================================================
+
+# Default target - build all enabled backports modules
+backports_modules: modules
+	@echo "Backports modules built successfully"
+	@echo "Modules:"
+	@echo "  - $(ATH11K_MODULE_NAME).ko (ath11k core)"
+ifeq ($(BACKPORTS_ATH11K_AHB),y)
+	@echo "  - $(ATH11K_AHB_MODULE_NAME).ko (ath11k AHB bus)"
+endif
+
+# Clean backports modules
+backports_clean:
+	@echo "Cleaning backports modules..."
+	$(MAKE) -C $(KDIR) M=$(PWD)/$(BACKPORTS_DIR) clean
+
+# Install backports modules
+backports_install: backports_modules
+	@echo "Installing backports modules..."
+ifeq ($(BACKPORTS_MODULE_NAMING),subdir)
+	@mkdir -p $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)/backports
+	@cp $(ATH11K_MODULE_NAME).ko $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)/backports/
+	@cp $(ATH11K_AHB_MODULE_NAME).ko $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)/backports/
+else
+	$(MAKE) -C $(KDIR) M=$(PWD)/$(BACKPORTS_DIR) modules_install
+endif
+	@depmod -a
+
+# ============================================================================
+# MODULE INFORMATION
+# ============================================================================
+
+# Module metadata is defined in the driver source files (ahb.c, core.c)
+# Module aliases for device tree matching are in ahb.c
+
+# ============================================================================
+# VERBOSE OUTPUT
+# ============================================================================
+
+ifeq ($(BACKPORTS_VERBOSE),y)
+    $(info ========================================)
+    $(info Backports Build Configuration)
+    $(info ========================================)
+    $(info BACKPORTS_ENABLE: $(BACKPORTS_ENABLE))
+    $(info BACKPORTS_ATH11K: $(BACKPORTS_ATH11K))
+    $(info BACKPORTS_ATH11K_AHB: $(BACKPORTS_ATH11K_AHB))
+    $(info BACKPORTS_USE_NATIVE_QRTR: $(BACKPORTS_USE_NATIVE_QRTR))
+    $(info BACKPORTS_USE_NATIVE_MHI: $(BACKPORTS_USE_NATIVE_MHI))
+    $(info BACKPORTS_QMI_HELPERS: $(BACKPORTS_QMI_HELPERS))
+    $(info MODULE_NAMING: $(BACKPORTS_MODULE_NAMING))
+    $(info ATH11K_MODULE: $(ATH11K_MODULE_NAME).ko)
+    $(info ATH11K_AHB_MODULE: $(ATH11K_AHB_MODULE_NAME).ko)
+    $(info ========================================)
+endif
+
+# ============================================================================
+# HELP
+# ============================================================================
+
+.PHONY: backports_help
+backports_help:
+	@echo "Backports Build System"
+	@echo "======================"
+	@echo ""
+	@echo "Targets:"
+	@echo "  backports_modules  - Build all enabled backports modules"
+	@echo "  backports_clean    - Clean backports build artifacts"
+	@echo "  backports_install  - Install backports modules"
+	@echo "  backports_help     - Show this help message"
+	@echo ""
+	@echo "Configuration:"
+	@echo "  Edit backports/build.config to customize build options"
+	@echo ""
+	@echo "Current Configuration:"
+	@echo "  ATH11K Core:       $(BACKPORTS_ATH11K)"
+	@echo "  ATH11K AHB:        $(BACKPORTS_ATH11K_AHB)"
+	@echo "  Native QRTR:       $(BACKPORTS_USE_NATIVE_QRTR)"
+	@echo "  Native MHI:        $(BACKPORTS_USE_NATIVE_MHI)"
+	@echo "  QMI Helpers:       $(BACKPORTS_QMI_HELPERS)"
+	@echo "  Module Naming:     $(BACKPORTS_MODULE_NAMING)"
