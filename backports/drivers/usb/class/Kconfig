@@ -1,0 +1,7 @@
+# USB class drivers configuration
+# This will be populated by gentree.py from upstream kernel
+
+comment "USB class drivers"
+	depends on BACKPORT_LINUX && USB
+
+# USB class drivers will be added here by gentree.py

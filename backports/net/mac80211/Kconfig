@@ -1,0 +1,112 @@
+# mac80211 configuration
+# This will be populated by gentree.py from upstream kernel
+
+config CPTCFG_MAC80211
+	tristate "Generic IEEE 802.11 Networking Stack (mac80211)"
+	depends on BACKPORT_LINUX
+	depends on CPTCFG_CFG80211
+	select BACKPORT_COMPAT
+	select CRYPTO
+	select CRYPTO_ARC4
+	select CRYPTO_AES
+	select CRYPTO_CCM
+	select CRYPTO_GCM
+	select CRYPTO_CMAC
+	select CRC32
+	help
+	  This option enables the hardware independent IEEE 802.11
+	  networking stack. This is backported from Linux v5.10.
+
+if CPTCFG_MAC80211
+
+config CPTCFG_MAC80211_HAS_RC
+	bool
+	default y
+
+config CPTCFG_MAC80211_RC_MINSTREL
+	bool "Minstrel" if EXPERT
+	default y
+	help
+	  This option enables the 'minstrel' TX rate control algorithm
+
+choice
+	prompt "Default rate control algorithm"
+	depends on CPTCFG_MAC80211_HAS_RC
+	default CPTCFG_MAC80211_RC_DEFAULT_MINSTREL
+	help
+	  This option selects the default rate control algorithm
+	  to be used with mac80211. If unsure, select Minstrel.
+
+config CPTCFG_MAC80211_RC_DEFAULT_MINSTREL
+	bool "Minstrel"
+	depends on CPTCFG_MAC80211_RC_MINSTREL
+	help
+	  Select Minstrel as the default rate control algorithm.
+
+endchoice
+
+config CPTCFG_MAC80211_RC_DEFAULT
+	string
+	default "minstrel_ht" if CPTCFG_MAC80211_RC_DEFAULT_MINSTREL
+	default ""
+
+config CPTCFG_MAC80211_MESH
+	bool "Enable mac80211 mesh networking support"
+	depends on CPTCFG_MAC80211
+	help
+	  Select this option to enable 802.11 mesh operation in mac80211
+	  drivers that support it. 802.11 mesh networks allow devices to
+	  communicate directly with each other without requiring a central
+	  access point.
+
+config CPTCFG_MAC80211_LEDS
+	bool "Enable LED triggers"
+	depends on CPTCFG_MAC80211
+	depends on LEDS_CLASS
+	select LEDS_TRIGGERS
+	help
+	  This option enables a few LED triggers for different
+	  packet receive/transmit events.
+
+config CPTCFG_MAC80211_DEBUGFS
+	bool "Export mac80211 internals in DebugFS"
+	depends on CPTCFG_MAC80211
+	depends on DEBUG_FS
+	help
+	  Select this to see extensive information about
+	  the internal state of mac80211 in debugfs.
+
+config CPTCFG_MAC80211_MESSAGE_TRACING
+	bool "Trace all mac80211 debug messages"
+	depends on CPTCFG_MAC80211
+	help
+	  Select this option to have mac80211 register the
+	  mac80211_msg trace subsystem with tracepoint debugging
+	  messages on the tracepoint debugging framework. It will
+	  increase the size of the kernel accordingly.
+
+config CPTCFG_MAC80211_DEBUG_MENU
+	bool "Select mac80211 debugging features"
+	depends on CPTCFG_MAC80211
+	help
+	  This option collects various mac80211 debug settings.
+
+config CPTCFG_MAC80211_NOINLINE
+	bool "Do not inline TX/RX handlers"
+	depends on CPTCFG_MAC80211_DEBUG_MENU
+	help
+	  This option affects code generation in mac80211, when
+	  selected some functions are marked "noinline" to allow
+	  easier debugging of problems in the transmit and receive
+	  paths.
+
+config CPTCFG_MAC80211_VERBOSE_DEBUG
+	bool "Verbose debugging output"
+	depends on CPTCFG_MAC80211_DEBUG_MENU
+	help
+	  Selecting this option causes mac80211 to print out
+	  many debugging messages. It should not be selected
+	  on production systems as some of the messages are
+	  remotely triggerable.
+
+endif # CPTCFG_MAC80211

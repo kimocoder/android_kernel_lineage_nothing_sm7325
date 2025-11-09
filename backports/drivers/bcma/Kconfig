@@ -1,0 +1,16 @@
+# Broadcom AMBA (BCMA) configuration
+# This will be populated by gentree.py from upstream kernel
+
+menuconfig CPTCFG_BCMA
+	tristate "Broadcom specific AMBA"
+	depends on BACKPORT_LINUX
+	depends on HAS_IOMEM && HAS_DMA
+	help
+	  Bus driver for Broadcom specific Advanced Microcontroller Bus
+	  Architecture.
+
+if CPTCFG_BCMA
+
+# BCMA options will be added here by gentree.py
+
+endif # CPTCFG_BCMA

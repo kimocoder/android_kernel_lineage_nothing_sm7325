@@ -1,0 +1,10 @@
+# Local site-specific Kconfig configurations
+# This file can be used to add custom or site-specific configuration options
+# for the backports integration.
+#
+# Example:
+# config BACKPORT_CUSTOM_OPTION
+#     bool "Enable custom feature"
+#     default n
+#     help
+#       This is a custom configuration option for site-specific needs.

@@ -1,15 +1,15 @@
 # this has the configuration for the backport code
-source "$BACKPORT_DIR/compat/Kconfig"
+source "backports/compat/Kconfig"
 
 # these are copied from the kernel
-source "$BACKPORT_DIR/net/wireless/Kconfig"
-source "$BACKPORT_DIR/net/mac80211/Kconfig"
-source "$BACKPORT_DIR/drivers/net/wireless/Kconfig"
-source "$BACKPORT_DIR/drivers/net/usb/Kconfig"
+source "backports/net/wireless/Kconfig"
+source "backports/net/mac80211/Kconfig"
+source "backports/drivers/net/wireless/Kconfig"
+source "backports/drivers/net/usb/Kconfig"
 
-source "$BACKPORT_DIR/drivers/ssb/Kconfig"
-source "$BACKPORT_DIR/drivers/bcma/Kconfig"
+source "backports/drivers/ssb/Kconfig"
+source "backports/drivers/bcma/Kconfig"
 
-source "$BACKPORT_DIR/drivers/usb/class/Kconfig"
+source "backports/drivers/usb/class/Kconfig"
 
-source "$BACKPORT_DIR/drivers/staging/Kconfig"
+source "backports/drivers/staging/Kconfig"

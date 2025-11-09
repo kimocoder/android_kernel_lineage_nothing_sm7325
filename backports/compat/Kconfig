@@ -1,0 +1,12 @@
+# Backports compatibility layer configuration
+# This provides compatibility shims for kernel API differences
+
+config BACKPORT_COMPAT
+	tristate
+	default m if BACKPORT_LINUX
+	help
+	  Compatibility layer for backported drivers.
+	  This module provides compatibility functions to bridge
+	  API differences between kernel versions.
+
+# Compat module is automatically selected by backported drivers

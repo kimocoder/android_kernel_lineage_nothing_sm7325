@@ -669,6 +669,7 @@ ifeq ($(KBUILD_EXTMOD),)
 init-y		:= init/
 drivers-y	:= drivers/ sound/ techpack/
 drivers-$(CONFIG_SAMPLES) += samples/
+drivers-$(CONFIG_BACKPORT_LINUX) += backports/
 net-y		:= net/
 libs-y		:= lib/
 core-y		:= usr/
@@ -711,6 +712,23 @@ export LLVM_NM
 endif
 
 include arch/$(SRCARCH)/Makefile
+
+# Backports integration
+ifdef CONFIG_BACKPORT_LINUX
+export CONFIG_BACKPORT_INTEGRATE := y
+export BACKPORT_DIR := backports/
+export BACKPORT_VERSION := v5.10
+export BACKPORTED_KERNEL_VERSION := 5.10.x
+export BACKPORTED_KERNEL_NAME := Linux
+
+# Add backports compiler flags for integration mode
+NOSTDINC_FLAGS += \
+	-DCPTCFG_VERSION=\"$(BACKPORT_VERSION)\" \
+	-DCPTCFG_KERNEL_VERSION=\"$(BACKPORTED_KERNEL_VERSION)\" \
+	-DCPTCFG_KERNEL_NAME=\"$(BACKPORTED_KERNEL_NAME)\"
+
+-include $(srctree)/backports/backport/Makefile.kernel
+endif
 
 ifdef need-config
 ifdef may-sync-config

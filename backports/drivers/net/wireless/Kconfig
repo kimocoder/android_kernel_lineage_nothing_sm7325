@@ -1,0 +1,25 @@
+# Wireless LAN drivers configuration
+# This will be populated by gentree.py from upstream kernel
+
+menuconfig CPTCFG_WLAN
+	bool "Wireless LAN"
+	depends on BACKPORT_LINUX
+	depends on !S390
+	depends on NET
+	select WIRELESS
+	default y
+	help
+	  This section contains all the pre 802.11 and 802.11 wireless
+	  device drivers. For a complete list of drivers and documentation
+	  on them refer to the wireless wiki:
+
+	  http://wireless.kernel.org/en/users/Drivers
+
+if CPTCFG_WLAN
+
+# Wireless driver subsystems will be added here by gentree.py
+# For now, this is a placeholder
+
+comment "Wireless drivers will be available after running gentree.py"
+
+endif # CPTCFG_WLAN
