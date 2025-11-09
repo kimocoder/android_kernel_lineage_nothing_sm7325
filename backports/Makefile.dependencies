@@ -1,0 +1,253 @@
+# Backports Conditional Dependencies Makefile
+# 
+# This Makefile handles conditional compilation of QRTR, MHI, and QMI
+# dependencies based on compatibility with the native kernel implementation.
+#
+# Configuration is controlled by backports/build.config:
+# - BACKPORTS_USE_NATIVE_QRTR: yes/no/auto
+# - BACKPORTS_USE_NATIVE_MHI: yes/no/auto
+# - BACKPORTS_QMI_HELPERS: y/n
+
+# ============================================================================
+# CONFIGURATION LOADING
+# ============================================================================
+
+# Load build configuration if not already loaded
+-include $(src)/backports/build.config
+
+# ============================================================================
+# QRTR CONDITIONAL COMPILATION
+# ============================================================================
+
+# Determine if we should compile backported QRTR
+COMPILE_BACKPORTED_QRTR := n
+
+ifeq ($(BACKPORTS_USE_NATIVE_QRTR),no)
+    COMPILE_BACKPORTED_QRTR := y
+endif
+
+ifeq ($(BACKPORTS_USE_NATIVE_QRTR),auto)
+    # Auto-detect: Check if native QRTR is compatible
+    # For now, based on compatibility assessment, we use native
+    COMPILE_BACKPORTED_QRTR := n
+endif
+
+# If compiling backported QRTR, add to build
+ifeq ($(COMPILE_BACKPORTED_QRTR),y)
+    # Add QRTR source files
+    obj-m += bp_qrtr.o
+    bp_qrtr-y := backports/net/qrtr/qrtr.o \
+                 backports/net/qrtr/ns.o \
+                 backports/net/qrtr/smd.o \
+                 backports/net/qrtr/tun.o \
+                 backports/net/qrtr/qrtr_backport_wrapper.o
+    
+    # Add preprocessor flag
+    ccflags-y += -DBACKPORTS_QRTR
+    
+    # Add module namespace to prevent conflicts
+    KBUILD_MODPOST_WARN += 1
+    
+    $(info Backports: Compiling backported QRTR implementation)
+else
+    $(info Backports: Using native kernel QRTR implementation)
+endif
+
+# ============================================================================
+# MHI CONDITIONAL COMPILATION
+# ============================================================================
+
+# Determine if we should compile backported MHI
+COMPILE_BACKPORTED_MHI := n
+
+ifeq ($(BACKPORTS_USE_NATIVE_MHI),no)
+    COMPILE_BACKPORTED_MHI := y
+endif
+
+ifeq ($(BACKPORTS_USE_NATIVE_MHI),auto)
+    # Auto-detect: Check if native MHI is compatible
+    # For now, based on compatibility assessment, we use native
+    COMPILE_BACKPORTED_MHI := n
+endif
+
+# If compiling backported MHI, add to build
+ifeq ($(COMPILE_BACKPORTED_MHI),y)
+    # Add MHI source files
+    obj-m += bp_mhi.o
+    bp_mhi-y := backports/drivers/bus/mhi/core/init.o \
+                backports/drivers/bus/mhi/core/main.o \
+                backports/drivers/bus/mhi/core/pm.o \
+                backports/drivers/bus/mhi/core/boot.o \
+                backports/drivers/bus/mhi/core/debugfs.o \
+                backports/drivers/bus/mhi/mhi_backport_wrapper.o
+    
+    # Add preprocessor flag
+    ccflags-y += -DBACKPORTS_MHI
+    
+    $(info Backports: Compiling backported MHI implementation)
+else
+    $(info Backports: Using native kernel MHI implementation)
+endif
+
+# ============================================================================
+# QMI HELPERS CONDITIONAL COMPILATION
+# ============================================================================
+
+# QMI helpers are always compiled from backports for ath11k compatibility
+ifeq ($(BACKPORTS_QMI_HELPERS),y)
+    # Add QMI helpers source files
+    obj-m += bp_qmi_helpers.o
+    bp_qmi_helpers-y := backports/net/qrtr/qmi_helpers.o \
+                        backports/net/qrtr/qmi_helpers_backport.o
+    
+    # Add preprocessor flag
+    ccflags-y += -DBACKPORTS_QMI_HELPERS
+    
+    $(info Backports: Compiling backported QMI helpers for ath11k)
+endif
+
+# ============================================================================
+# DEPENDENCY VERIFICATION
+# ============================================================================
+
+# Verify that required dependencies are available
+ifeq ($(BACKPORTS_ATH11K),y)
+    # ath11k requires QMI helpers
+    ifneq ($(BACKPORTS_QMI_HELPERS),y)
+        $(warning Backports: ath11k requires QMI helpers, enabling BACKPORTS_QMI_HELPERS)
+        BACKPORTS_QMI_HELPERS := y
+        ccflags-y += -DBACKPORTS_QMI_HELPERS
+    endif
+    
+    # ath11k_ahb requires QRTR (either native or backported)
+    ifeq ($(BACKPORTS_ATH11K_AHB),y)
+        ifeq ($(COMPILE_BACKPORTED_QRTR),n)
+            # Using native QRTR - verify it's available
+            $(info Backports: ath11k_ahb will use native kernel QRTR)
+        else
+            # Using backported QRTR
+            $(info Backports: ath11k_ahb will use backported QRTR)
+        endif
+    endif
+endif
+
+# ============================================================================
+# SYMBOL CONFLICT PREVENTION
+# ============================================================================
+
+# Add preprocessor guards to prevent symbol conflicts
+ifeq ($(COMPILE_BACKPORTED_QRTR),y)
+    # Rename QRTR symbols with bp_ prefix
+    ccflags-y += -Dqrtr_endpoint_register=bp_qrtr_endpoint_register
+    ccflags-y += -Dqrtr_endpoint_unregister=bp_qrtr_endpoint_unregister
+    ccflags-y += -Dqrtr_endpoint_post=bp_qrtr_endpoint_post
+endif
+
+ifeq ($(COMPILE_BACKPORTED_MHI),y)
+    # Rename MHI symbols with bp_ prefix
+    ccflags-y += -Dmhi_alloc_controller=bp_mhi_alloc_controller
+    ccflags-y += -Dmhi_free_controller=bp_mhi_free_controller
+    ccflags-y += -Dmhi_register_controller=bp_mhi_register_controller
+    ccflags-y += -Dmhi_unregister_controller=bp_mhi_unregister_controller
+    ccflags-y += -Dof_register_mhi_controller=bp_of_register_mhi_controller
+endif
+
+# ============================================================================
+# MODULE DEPENDENCIES
+# ============================================================================
+
+# Declare module dependencies for proper loading order
+
+# ath11k core module dependencies
+ifeq ($(BACKPORTS_ATH11K),y)
+    # Always depends on cfg80211 and mac80211 (native kernel)
+    # Depends on QMI helpers (backported)
+    ifeq ($(BACKPORTS_QMI_HELPERS),y)
+        # Will depend on bp_qmi_helpers.ko
+    endif
+    
+    # Depends on QRTR (native or backported)
+    ifeq ($(COMPILE_BACKPORTED_QRTR),y)
+        # Will depend on bp_qrtr.ko
+    endif
+endif
+
+# ath11k_ahb module dependencies
+ifeq ($(BACKPORTS_ATH11K_AHB),y)
+    # Depends on ath11k core
+    # Depends on MHI (native or backported)
+    ifeq ($(COMPILE_BACKPORTED_MHI),y)
+        # Will depend on bp_mhi.ko
+    endif
+endif
+
+# ============================================================================
+# INCLUDE PATHS
+# ============================================================================
+
+# Add backport include paths for dependency headers
+ccflags-y += -I$(src)/backports/backport/backport-include
+ccflags-y += -I$(src)/backports/backport/backport-include/backport
+
+# Add dependency-specific include paths
+ifeq ($(COMPILE_BACKPORTED_QRTR),y)
+    ccflags-y += -I$(src)/backports/net/qrtr
+endif
+
+ifeq ($(COMPILE_BACKPORTED_MHI),y)
+    ccflags-y += -I$(src)/backports/drivers/bus/mhi/core
+endif
+
+# ============================================================================
+# EXPORT SYMBOLS
+# ============================================================================
+
+# Export symbols from backported modules for use by ath11k
+
+ifeq ($(COMPILE_BACKPORTED_QRTR),y)
+    # QRTR symbols will be exported with bp_ prefix
+    EXPORT_SYMBOL_GPL(bp_qrtr_endpoint_register);
+    EXPORT_SYMBOL_GPL(bp_qrtr_endpoint_unregister);
+    EXPORT_SYMBOL_GPL(bp_qrtr_endpoint_post);
+endif
+
+ifeq ($(COMPILE_BACKPORTED_MHI),y)
+    # MHI symbols will be exported with bp_ prefix
+    EXPORT_SYMBOL_GPL(bp_mhi_alloc_controller);
+    EXPORT_SYMBOL_GPL(bp_mhi_free_controller);
+    EXPORT_SYMBOL_GPL(bp_mhi_register_controller);
+    EXPORT_SYMBOL_GPL(bp_of_register_mhi_controller);
+endif
+
+# ============================================================================
+# DEBUG OUTPUT
+# ============================================================================
+
+ifeq ($(BACKPORTS_VERBOSE),y)
+    $(info ========================================)
+    $(info Backports Dependency Configuration)
+    $(info ========================================)
+    $(info COMPILE_BACKPORTED_QRTR: $(COMPILE_BACKPORTED_QRTR))
+    $(info COMPILE_BACKPORTED_MHI:  $(COMPILE_BACKPORTED_MHI))
+    $(info BACKPORTS_QMI_HELPERS:   $(BACKPORTS_QMI_HELPERS))
+    $(info ========================================)
+endif
+
+# ============================================================================
+# HELP
+# ============================================================================
+
+.PHONY: backports_deps_help
+backports_deps_help:
+	@echo "Backports Dependency Configuration"
+	@echo "==================================="
+	@echo ""
+	@echo "Current Configuration:"
+	@echo "  QRTR: $(if $(filter y,$(COMPILE_BACKPORTED_QRTR)),Backported,Native)"
+	@echo "  MHI:  $(if $(filter y,$(COMPILE_BACKPORTED_MHI)),Backported,Native)"
+	@echo "  QMI:  $(if $(filter y,$(BACKPORTS_QMI_HELPERS)),Backported helpers,Native)"
+	@echo ""
+	@echo "To change configuration, edit backports/build.config:"
+	@echo "  BACKPORTS_USE_NATIVE_QRTR=yes/no/auto"
+	@echo "  BACKPORTS_USE_NATIVE_MHI=yes/no/auto"
+	@echo "  BACKPORTS_QMI_HELPERS=y/n"

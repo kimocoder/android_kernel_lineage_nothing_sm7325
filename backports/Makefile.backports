@@ -63,23 +63,8 @@ endif
 # CONDITIONAL DEPENDENCIES
 # ============================================================================
 
-# QRTR - Use native or backported
-ifneq ($(BACKPORTS_USE_NATIVE_QRTR),yes)
-    obj-$(BACKPORTS_ENABLE) += $(BACKPORTS_DIR)/net/qrtr/
-    ccflags-y += -DBACKPORTS_QRTR
-endif
-
-# MHI - Use native or backported
-ifneq ($(BACKPORTS_USE_NATIVE_MHI),yes)
-    obj-$(BACKPORTS_ENABLE) += $(BACKPORTS_DIR)/drivers/bus/mhi/
-    ccflags-y += -DBACKPORTS_MHI
-endif
-
-# QMI Helpers - Always use backported version for ath11k
-ifeq ($(BACKPORTS_QMI_HELPERS),y)
-    obj-$(BACKPORTS_ENABLE) += $(BACKPORTS_DIR)/net/qrtr/qmi_helpers.o
-    ccflags-y += -DBACKPORTS_QMI_HELPERS
-endif
+# Include conditional dependency compilation logic
+include $(src)/backports/Makefile.dependencies
 
 # ============================================================================
 # ATH11K DRIVER MODULES
