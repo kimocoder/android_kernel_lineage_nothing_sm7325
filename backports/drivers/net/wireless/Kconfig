@@ -17,9 +17,6 @@ menuconfig CPTCFG_WLAN
 
 if CPTCFG_WLAN
 
-# Wireless driver subsystems will be added here by gentree.py
-# For now, this is a placeholder
-
-comment "Wireless drivers will be available after running gentree.py"
+source "backports/drivers/net/wireless/ath/Kconfig"
 
 endif # CPTCFG_WLAN

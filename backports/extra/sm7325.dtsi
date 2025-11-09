@@ -1,0 +1,146 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2022, Xilin Wu <wuxilin123@gmail.com>
+ */
+
+#include "sc7280.dtsi"
+
+&CPU0 {
+	/delete-property/ operating-points-v2;
+};
+
+&CPU1 {
+	/delete-property/ operating-points-v2;
+};
+
+&CPU2 {
+	/delete-property/ operating-points-v2;
+};
+
+&CPU3 {
+	/delete-property/ operating-points-v2;
+};
+
+&CPU4 {
+	/delete-property/ operating-points-v2;
+};
+
+&CPU5 {
+	/delete-property/ operating-points-v2;
+};
+
+&CPU6 {
+	/delete-property/ operating-points-v2;
+};
+
+&CPU7 {
+	/delete-property/ operating-points-v2;
+};
+
+&gcc {
+	protected-clocks = <GCC_QSPI_CORE_CLK>,
+			   <GCC_QSPI_CORE_CLK_SRC>,
+			   <GCC_QSPI_CNOC_PERIPH_AHB_CLK>,
+               <GCC_MSS_Q6SS_BOOT_CLK_SRC>,
+               <GCC_SEC_CTRL_CLK_SRC>;
+};
+
+// Inaccessible from HLOS or useless on retail
+&lpass_hm {
+    status = "disabled";
+};
+
+&wdt {
+    status = "disabled";
+};
+
+&eud {
+    status = "disabled";
+};
+
+// Devices that depend on the ones above
+&lpass_core {
+    status = "disabled";
+};
+
+&lpass_aon {
+    status = "disabled";
+};
+
+&lpass_audiocc {
+    status = "disabled";
+};
+
+// SC7280 doesn't have UFS yet.
+&soc {
+    ufs_mem_hc: ufshc@1d84000 {
+        compatible = "qcom,sm7325-ufshc", "qcom,ufshc",
+                    "jedec,ufs-2.0";
+        reg = <0 0x01d84000 0 0x3000>;
+        interrupts = <GIC_SPI 265 IRQ_TYPE_LEVEL_HIGH>;
+        phys = <&ufs_mem_phy_lanes>;
+        phy-names = "ufsphy";
+        lanes-per-direction = <2>;
+        #reset-cells = <1>;
+        resets = <&gcc GCC_UFS_PHY_BCR>;
+        reset-names = "rst";
+
+        power-domains = <&gcc GCC_UFS_PHY_GDSC>;
+
+        iommus = <&apps_smmu 0x80 0x0>;
+
+        clock-names =
+            "core_clk",
+            "bus_aggr_clk",
+            "iface_clk",
+            "core_clk_unipro",
+            "ref_clk",
+            "tx_lane0_sync_clk",
+            "rx_lane0_sync_clk",
+            "rx_lane1_sync_clk";
+        clocks =
+            <&gcc GCC_UFS_PHY_AXI_CLK>,
+            <&gcc GCC_AGGRE_UFS_PHY_AXI_CLK>,
+            <&gcc GCC_UFS_PHY_AHB_CLK>,
+            <&gcc GCC_UFS_PHY_UNIPRO_CORE_CLK>,
+            <&rpmhcc RPMH_CXO_CLK>,
+            <&gcc GCC_UFS_PHY_TX_SYMBOL_0_CLK>,
+            <&gcc GCC_UFS_PHY_RX_SYMBOL_0_CLK>,
+            <&gcc GCC_UFS_PHY_RX_SYMBOL_1_CLK>;
+        freq-table-hz =
+            <75000000 300000000>,
+            <0 0>,
+            <0 0>,
+            <75000000 300000000>,
+            <0 0>,
+            <0 0>,
+            <0 0>,
+            <0 0>;
+        status = "okay";
+    };
+
+    ufs_mem_phy: phy@1d87000 {
+        compatible = "qcom,sm7325-qmp-ufs-phy";
+        reg = <0 0x01d87000 0 0xe10>;
+        #address-cells = <2>;
+        #size-cells = <2>;
+        ranges;
+        clock-names = "ref", "ref_aux", "qref";
+        clocks = <&rpmhcc RPMH_CXO_CLK>,
+                <&gcc GCC_UFS_PHY_PHY_AUX_CLK>,
+                <&gcc GCC_UFS_1_CLKREF_EN>;
+
+        resets = <&ufs_mem_hc 0>;
+        reset-names = "ufsphy";
+        status = "okay";
+
+        ufs_mem_phy_lanes: phy@1d87400 {
+            reg = <0 0x01d87400 0 0x108>,
+                    <0 0x01d87600 0 0x1e0>,
+                    <0 0x01d87c00 0 0x1dc>,
+                    <0 0x01d87800 0 0x108>,
+                    <0 0x01d87a00 0 0x1e0>;
+            #phy-cells = <0>;
+        };
+    };
+};

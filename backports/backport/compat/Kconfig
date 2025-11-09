@@ -1,6 +1,18 @@
 #
 # backport Kconfig
 #
+
+config BACKPORT_COMPAT
+	tristate "Backports compatibility module"
+	depends on BACKPORT_LINUX
+	default m
+	help
+	  This module provides compatibility code for backported drivers.
+	  It is required for all backported drivers to function properly.
+	  
+	  This module should be loaded before any backported drivers.
+
+#
 # Some options are user-selectable ("BPAUTO_USERSEL_*")
 #
 # Most options, however, follow a few different schemes:

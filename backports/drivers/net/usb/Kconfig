@@ -11,6 +11,153 @@ menuconfig CPTCFG_USB_NET_DRIVERS
 
 if CPTCFG_USB_NET_DRIVERS
 
-# USB network drivers will be added here by gentree.py
+config CPTCFG_USB_USBNET
+	tristate "Multi-purpose USB Networking Framework"
+	depends on BACKPORT_LINUX
+	select BACKPORT_COMPAT
+	select MII
+	help
+	  This driver supports several kinds of network links over USB,
+	  with "minidrivers" built around a common network driver core
+	  that supports deep queues for efficient transfers.  (This gives
+	  better performance with small packets and at high speeds).
+
+	  The USB host runs "usbnet", and the other end of the link might be:
+
+	  - Another USB host, when using USB "network" or "data transfer"
+	    cables.  These are often used to network laptops to PCs, like
+	    "Laplink" parallel cables or some motherboards.  These rely
+	    on specialized chips from many vendors.
+
+	  - An intelligent USB gadget, perhaps embedding a Linux system.
+	    These include PDAs running Linux (like the Sharp Zaurus or
+	    Yopy), and devices that interoperate using the standard CDC
+	    (Communications Device Class) specification.
+
+	  - Network adapter hardware (like those for 10/100 Ethernet) which
+	    uses this driver framework.
+
+	  The link will appear with a name like "usb0", when the link is
+	  a two-node link, or "eth0" for most CDC-Ethernet devices.  Those
+	  two-node links are most easily managed with Ethernet Bridging
+	  (CONFIG_BRIDGE) instead of routing.
+
+	  For more information see <http://www.linux-usb.org/usbnet/>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called usbnet.
+
+config CPTCFG_USB_NET_RNDIS_HOST
+	tristate "Host for RNDIS and ActiveSync devices"
+	depends on CPTCFG_USB_USBNET
+	select BACKPORT_COMPAT
+	help
+	  This option enables hosting "Remote NDIS" USB networking links,
+	  as encouraged by Microsoft (instead of CDC Ethernet!) for use in
+	  various devices that may only support this protocol.  A variant
+	  of this protocol (with even less public documentation) seems to
+	  be at the root of Microsoft's "ActiveSync" too.
+
+	  Avoid using this protocol unless you have no better options.
+	  The protocol specification is incomplete, and is controlled by
+	  (and for) Microsoft; it isn't an "Open" ecosystem or market.
+
+config CPTCFG_USB_NET_CDC_ETHER
+	tristate "CDC Ethernet support (smart devices such as cable modems)"
+	depends on CPTCFG_USB_USBNET
+	select BACKPORT_COMPAT
+	default y
+	help
+	  This option supports devices conforming to the Communication Device
+	  Class (CDC) Ethernet Control Model, a specification that's easy to
+	  implement in device firmware.  The CDC specifications are available
+	  from <http://www.usb.org/>.
+
+	  CDC Ethernet is an implementation option for DOCSIS cable modems
+	  that support USB connectivity, used for non-Microsoft USB hosts.
+	  The Linux-USB CDC Ethernet Gadget driver is an open implementation.
+	  This driver should work with at least the following devices:
+
+	    * Dell Wireless 5530 HSPA
+	    * Ericsson PipeRider (all variants)
+	    * Ericsson Mobile Broadband Module (all variants)
+	    * Motorola (DM100 and SB4100)
+	    * Broadcom Cable Modem (reference design)
+	    * Toshiba (PCX1100U and F3507g/F3607gw)
+	    * ...
+
+	  This driver creates an interface named "ethX", where X depends on
+	  what other networking devices you have in use.  However, if the
+	  IEEE 802 "local assignment" bit is set in the address, a "usbX"
+	  name is used instead.
+
+config CPTCFG_USB_NET_CDC_MBIM
+	tristate "CDC MBIM support"
+	depends on CPTCFG_USB_USBNET
+	select BACKPORT_COMPAT
+	help
+	  This driver provides support for CDC MBIM (Mobile Broadband
+	  Interface Model) devices. The CDC MBIM specification is
+	  available from <http://www.usb.org/>.
+
+	  MBIM devices require configuration using the management
+	  protocol defined by the MBIM specification.  This driver
+	  provides unfiltered access to the MBIM control channel
+	  through the associated /dev/cdc-wdmX character device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cdc_mbim.
+
+config CPTCFG_USB_NET_CDC_NCM
+	tristate "CDC NCM support"
+	depends on CPTCFG_USB_USBNET
+	select BACKPORT_COMPAT
+	default y
+	help
+	  This driver provides support for CDC NCM (Network Control Model
+	  Device USB Class Specification). The CDC NCM specification is
+	  available from <http://www.usb.org/>.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module.
+
+	  This driver should work with at least the following devices:
+	    * ST-Ericsson M700 LTE FDD/TDD Mobile Broadband Modem (ref. design)
+	    * ST-Ericsson M5730 HSPA+ Mobile Broadband Modem (reference design)
+	    * ST-Ericsson M570 HSPA+ Mobile Broadband Modem (reference design)
+	    * Ericsson F5521gw Mobile Broadband Module
+
+config CPTCFG_USB_NET_QMI_WWAN
+	tristate "QMI WWAN driver for Qualcomm MSM based 3G and LTE modems"
+	depends on CPTCFG_USB_USBNET
+	select BACKPORT_COMPAT
+	help
+	  Support WWAN LTE/3G devices based on Qualcomm Mobile Data Modem
+	  (MDM) chipsets.  Examples of such devices are
+	    * Huawei E392/E398
+
+	  This driver will only drive the ethernet part of the chips.
+	  The devices require additional configuration to be usable.
+	  Multiple management interfaces with linux drivers are
+	  available:
+
+	    * option: AT commands on /dev/ttyUSBx
+	    * cdc-wdm: Qualcomm MSM Interface (QMI) protocol on /dev/cdc-wdmx
+
+	  A modem manager with support for QMI is recommended.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called qmi_wwan.
+
+config CPTCFG_USB_NET_SIERRA_NET
+	tristate "Sierra Wireless devices"
+	depends on CPTCFG_USB_USBNET
+	select BACKPORT_COMPAT
+	default y
+	help
+	  Choose this option if you have a Sierra Wireless USB device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sierra_net.
 
 endif # CPTCFG_USB_NET_DRIVERS

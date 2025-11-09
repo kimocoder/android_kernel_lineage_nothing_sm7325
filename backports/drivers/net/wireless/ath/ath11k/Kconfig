@@ -1,0 +1,86 @@
+# SPDX-License-Identifier: BSD-3-Clause-Clear
+# ATH11K driver configuration
+
+config CPTCFG_ATH11K
+	tristate "Qualcomm Technologies 802.11ax chipset support"
+	depends on CPTCFG_MAC80211 && CPTCFG_CFG80211
+	depends on BACKPORT_LINUX
+	select CPTCFG_ATH_COMMON
+	help
+	  This module adds support for Qualcomm Technologies 802.11ax family of
+	  chipsets.
+
+	  Supported chipsets:
+	  - QCA6390 (WiFi 6, PCIe)
+	  - QCA6490 (WiFi 6E, PCIe)
+	  - QCA6750 (WiFi 6, integrated)
+	  - WCN7850 (WiFi 6E, PCIe)
+
+	  If you choose to build a module, it'll be called ath11k.
+
+config CPTCFG_ATH11K_DEBUG
+	bool "QCA ath11k debugging"
+	depends on CPTCFG_ATH11K
+	help
+	  Enables debug support
+
+	  If unsure, say Y to make it easier to debug problems.
+
+config CPTCFG_ATH11K_DEBUGFS
+	bool "QCA ath11k debugfs support"
+	depends on CPTCFG_ATH11K && DEBUG_FS
+	help
+	  Enable ath11k debugfs support
+
+	  If unsure, say Y to make it easier to debug problems.
+
+config CPTCFG_ATH11K_TRACING
+	bool "QCA ath11k tracing support"
+	depends on CPTCFG_ATH11K
+	depends on EVENT_TRACING
+	help
+	  Select this to use ath11k tracing infrastructure.
+
+config CPTCFG_ATH11K_SPECTRAL
+	bool "QCA ath11k spectral scan support"
+	depends on CPTCFG_ATH11K_DEBUGFS
+	depends on RELAY
+	help
+	  Enable ath11k spectral scan support
+
+	  Say Y to enable access to the FFT/spectral data via debugfs.
+
+config CPTCFG_ATH11K_PCI
+	tristate "Atheros ath11k PCI support"
+	depends on CPTCFG_ATH11K
+	depends on PCI
+	help
+	  This module adds support for PCIE bus
+
+	  Supported chipsets:
+	  - QCA6390 (WiFi 6, PCIe)
+	  - QCA6490 (WiFi 6E, PCIe)
+	  - WCN7850 (WiFi 6E, PCIe)
+
+	  Requires CNSS2 platform driver.
+
+config CPTCFG_ATH11K_AHB
+	tristate "Atheros ath11k AHB support"
+	depends on CPTCFG_ATH11K
+	help
+	  This module adds support for AHB bus
+
+	  Supported chipsets:
+	  - QCA6750 (WiFi 6, integrated/AHB)
+	  - IPQ8074 (WiFi 6, integrated/AHB)
+	  - IPQ6018 (WiFi 6, integrated/AHB)
+
+	  Requires ICNSS2 platform driver.
+
+config CPTCFG_ATH11K_SNOC
+	tristate "Atheros ath11k SNOC support (Deprecated)"
+	depends on CPTCFG_ATH11K
+	help
+	  This module adds support for SNOC bus (System NoC)
+
+	  This is deprecated and most platforms should use AHB instead.

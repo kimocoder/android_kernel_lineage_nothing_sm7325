@@ -4,4 +4,15 @@
 comment "USB class drivers"
 	depends on BACKPORT_LINUX && USB
 
-# USB class drivers will be added here by gentree.py
+config CPTCFG_USB_WDM
+	tristate "USB Wireless Device Management support"
+	depends on BACKPORT_LINUX
+	depends on USB
+	select BACKPORT_COMPAT
+	help
+	  This driver supports the WMC Device Management functionality
+	  of cell phones compliant to the CDC WMC specification. You can use
+	  AT commands over this device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cdc-wdm.
