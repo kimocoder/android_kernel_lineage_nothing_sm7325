@@ -716,7 +716,7 @@ include arch/$(SRCARCH)/Makefile
 # Backports integration
 ifdef CONFIG_BACKPORT_LINUX
 export CONFIG_BACKPORT_INTEGRATE := y
-export BACKPORT_DIR := backports/
+export BACKPORT_DIR := backports
 export BACKPORT_VERSION := v5.10
 export BACKPORTED_KERNEL_VERSION := 5.10.x
 export BACKPORTED_KERNEL_NAME := Linux
