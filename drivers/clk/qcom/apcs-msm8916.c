@@ -17,7 +17,11 @@
 #include "clk-regmap.h"
 #include "clk-regmap-mux-div.h"
 
-static const u32 gpll0_a53cc_map[] = { 4, 5 };
+/* Fixed parent map type for modern kernels */
+static const struct parent_map gpll0_a53cc_map[] = {
+	{ 4, 0 },
+	{ 5, 1 },
+};
 
 static const char * const gpll0_a53cc[] = {
 	"gpll0_vote",
@@ -36,7 +40,7 @@ static int a53cc_notifier_cb(struct notifier_block *nb, unsigned long event,
 						     struct clk_regmap_mux_div,
 						     clk_nb);
 	if (event == PRE_RATE_CHANGE)
-		/* set the mux and divider to safe frequency (400mhz) */
+		/* set the mux and divider to safe frequency (400MHz) */
 		ret = mux_div_set_src_div(md, 4, 3);
 
 	return notifier_from_errno(ret);
@@ -104,7 +108,6 @@ static int qcom_apcs_msm8916_clk_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, a53cc);
-
 	return 0;
 
 err:
@@ -117,7 +120,6 @@ static int qcom_apcs_msm8916_clk_remove(struct platform_device *pdev)
 	struct clk_regmap_mux_div *a53cc = platform_get_drvdata(pdev);
 
 	clk_notifier_unregister(a53cc->pclk, &a53cc->clk_nb);
-
 	return 0;
 }
 
@@ -130,6 +132,5 @@ static struct platform_driver qcom_apcs_msm8916_clk_driver = {
 };
 module_platform_driver(qcom_apcs_msm8916_clk_driver);
 
-MODULE_AUTHOR("Georgi Djakov <georgi.djakov@linaro.org>");
+MODULE_DESCRIPTION("Qualcomm APCS clock controller driver for MSM8916");
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Qualcomm MSM8916 APCS clock driver");
