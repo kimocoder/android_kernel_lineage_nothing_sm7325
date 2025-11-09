@@ -1,0 +1,48 @@
+# CNSS2 Platform Driver Configuration
+# This fragment enables CNSS2 platform driver for PCIe-based WiFi modules
+# Works with backported ATH11K driver from backports (v5.10)
+# Requires: backports_wireless.fragment, backports_ath11k.fragment
+
+# Enable PCI support (required for CNSS2)
+CONFIG_PCI=y
+CONFIG_ARCH_QCOM=y
+CONFIG_PCI_MSM=y
+
+# Enable CNSS utilities (dependency for CNSS2)
+CONFIG_CNSS_UTILS=m
+
+# Enable CNSS QMI service (dependency for CNSS2_QMI)
+CONFIG_CNSS_QMI_SVC=m
+
+# Enable CNSS2 base driver (as module)
+CONFIG_CNSS2=m
+
+# Enable CNSS2 QMI support for firmware communication
+CONFIG_CNSS2_QMI=y
+
+# Enable CNSS2 debug support for verbose logging
+CONFIG_CNSS2_DEBUG=y
+
+# Enable asynchronous probe for faster boot
+CONFIG_CNSS_ASYNC=y
+
+# Chipset-specific CNSS2 configurations
+
+# Enable QCA6290 chipset support
+CONFIG_CNSS_QCA6290=y
+
+# Enable QCA6390 chipset support
+CONFIG_CNSS_QCA6390=y
+
+# Enable QCA6490 chipset support
+CONFIG_CNSS_QCA6490=y
+
+# Enable WCN7850 chipset support
+CONFIG_CNSS_WCN7850=y
+
+# Enable runtime PM and bus auto-suspend for power management
+CONFIG_BUS_AUTO_SUSPEND=y
+
+# Optional: Enable request_firmware_direct to avoid 60s timeout
+CONFIG_CNSS_REQ_FW_DIRECT=y
+

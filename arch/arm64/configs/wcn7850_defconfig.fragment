@@ -1,0 +1,140 @@
+# WCN7850 PCIe WiFi 6E Configuration
+# Complete defconfig fragment for WCN7850 chipset
+# This configuration enables all required components for PCIe-based WiFi 6E support
+#
+# Usage:
+#   scripts/kconfig/merge_config.sh arch/arm64/configs/defconfig \
+#     arch/arm64/configs/wcn7850_defconfig.fragment
+#
+# Chipset Support:
+#   - WCN7850 (WiFi 6E, PCIe)
+
+# ============================================================================
+# Backports Wireless Subsystem (cfg80211 + mac80211)
+# ============================================================================
+
+# Enable backports subsystem
+CONFIG_BACKPORT_LINUX=y
+
+# Disable in-tree wireless to avoid conflicts
+# CONFIG_CFG80211 is not set
+# CONFIG_MAC80211 is not set
+
+# Enable backports wireless configuration API (cfg80211)
+CONFIG_CPTCFG_CFG80211=m
+CONFIG_CPTCFG_CFG80211_WEXT=y
+CONFIG_CPTCFG_CFG80211_REQUIRE_SIGNED_REGDB=y
+CONFIG_CPTCFG_CFG80211_USE_KERNEL_REGDB_KEYS=y
+CONFIG_CPTCFG_CFG80211_DEFAULT_PS=y
+CONFIG_CPTCFG_CFG80211_DEBUGFS=y
+CONFIG_CPTCFG_CFG80211_CRDA_SUPPORT=y
+
+# Enable backports mac80211 wireless stack
+CONFIG_CPTCFG_MAC80211=m
+CONFIG_CPTCFG_MAC80211_HAS_RC=y
+CONFIG_CPTCFG_MAC80211_RC_MINSTREL=y
+CONFIG_CPTCFG_MAC80211_RC_DEFAULT_MINSTREL=y
+CONFIG_CPTCFG_MAC80211_RC_DEFAULT="minstrel_ht"
+CONFIG_CPTCFG_MAC80211_MESH=y
+CONFIG_CPTCFG_MAC80211_LEDS=y
+CONFIG_CPTCFG_MAC80211_DEBUGFS=y
+CONFIG_CPTCFG_MAC80211_MESSAGE_TRACING=y
+CONFIG_CPTCFG_MAC80211_DEBUG_MENU=y
+
+# ============================================================================
+# Backports ATH11K Driver
+# ============================================================================
+
+# Disable in-tree ATH drivers to avoid conflicts
+# CONFIG_ATH_COMMON is not set
+# CONFIG_ATH10K is not set
+# CONFIG_ATH11K is not set
+
+# Enable backports WLAN drivers
+CONFIG_CPTCFG_WLAN=y
+CONFIG_CPTCFG_WLAN_VENDOR_ATH=y
+
+# Enable ATH common infrastructure
+CONFIG_CPTCFG_ATH_COMMON=m
+
+# Enable ATH11K base driver (as module)
+CONFIG_CPTCFG_ATH11K=m
+
+# Enable ATH11K debugging support
+CONFIG_CPTCFG_ATH11K_DEBUG=y
+CONFIG_CPTCFG_ATH11K_DEBUGFS=y
+CONFIG_CPTCFG_ATH11K_TRACING=y
+
+# Enable ATH11K PCIe support (required for WCN7850)
+CONFIG_CPTCFG_ATH11K_PCI=m
+
+# Disable AHB/SNOC (not used for PCIe chipsets)
+# CONFIG_CPTCFG_ATH11K_AHB is not set
+# CONFIG_CPTCFG_ATH11K_SNOC is not set
+
+# Enable ATH11K advanced features
+CONFIG_CPTCFG_ATH11K_SPECTRAL=y
+
+# ============================================================================
+# CNSS2 Platform Driver (PCIe)
+# ============================================================================
+
+# Enable PCI support (required for CNSS2)
+CONFIG_PCI=y
+CONFIG_ARCH_QCOM=y
+CONFIG_PCI_MSM=y
+
+# Enable CNSS utilities (dependency for CNSS2)
+CONFIG_CNSS_UTILS=m
+
+# Enable CNSS QMI service (dependency for CNSS2_QMI)
+CONFIG_CNSS_QMI_SVC=m
+
+# Enable CNSS2 base driver (as module)
+CONFIG_CNSS2=m
+
+# Enable CNSS2 QMI support for firmware communication
+CONFIG_CNSS2_QMI=y
+
+# Enable CNSS2 debug support for verbose logging
+CONFIG_CNSS2_DEBUG=y
+
+# Enable asynchronous probe for faster boot
+CONFIG_CNSS_ASYNC=y
+
+# Enable WCN7850 chipset support
+CONFIG_CNSS_WCN7850=y
+
+# Disable other chipsets (not applicable for this configuration)
+# CONFIG_CNSS_QCA6290 is not set
+# CONFIG_CNSS_QCA6390 is not set
+# CONFIG_CNSS_QCA6490 is not set
+# CONFIG_CNSS_QCA6750 is not set
+
+# Enable runtime PM and bus auto-suspend for power management
+CONFIG_BUS_AUTO_SUSPEND=y
+
+# Enable request_firmware_direct to avoid 60s timeout
+CONFIG_CNSS_REQ_FW_DIRECT=y
+
+# ============================================================================
+# Additional Dependencies
+# ============================================================================
+
+# Ensure wireless core is enabled
+CONFIG_WIRELESS=y
+CONFIG_WEXT_CORE=y
+CONFIG_WEXT_PROC=y
+CONFIG_WEXT_SPY=y
+CONFIG_WEXT_PRIV=y
+
+# Ensure crypto support for wireless
+CONFIG_CRYPTO=y
+CONFIG_CRYPTO_AES=y
+CONFIG_CRYPTO_CCM=y
+CONFIG_CRYPTO_GCM=y
+CONFIG_CRYPTO_CMAC=y
+
+# Ensure firmware loading support
+CONFIG_FW_LOADER=y
+CONFIG_FW_LOADER_USER_HELPER=y

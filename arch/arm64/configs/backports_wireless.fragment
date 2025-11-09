@@ -2,6 +2,9 @@
 # This fragment enables cfg80211 and mac80211 from backports (v5.10)
 # to provide updated wireless stack on MSM-5.4 kernel
 
+# Enable backports subsystem
+CONFIG_BACKPORT_LINUX=y
+
 # Disable in-tree wireless to avoid conflicts
 # CONFIG_CFG80211 is not set
 # CONFIG_MAC80211 is not set

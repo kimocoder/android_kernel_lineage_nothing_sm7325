@@ -1,0 +1,156 @@
+# QCA6750 Integrated WiFi 6 Configuration
+# Complete defconfig fragment for QCA6750 chipset
+# This configuration enables all required components for integrated WiFi 6 support
+#
+# Usage:
+#   scripts/kconfig/merge_config.sh arch/arm64/configs/defconfig \
+#     arch/arm64/configs/qca6750_defconfig.fragment
+#
+# Chipset Support:
+#   - QCA6750 (WiFi 6, AHB/integrated)
+
+# ============================================================================
+# Backports Wireless Subsystem (cfg80211 + mac80211)
+# ============================================================================
+
+# Enable backports subsystem
+CONFIG_BACKPORT_LINUX=y
+
+# Disable in-tree wireless to avoid conflicts
+# CONFIG_CFG80211 is not set
+# CONFIG_MAC80211 is not set
+
+# Enable backports wireless configuration API (cfg80211)
+CONFIG_CPTCFG_CFG80211=m
+CONFIG_CPTCFG_CFG80211_WEXT=y
+CONFIG_CPTCFG_CFG80211_REQUIRE_SIGNED_REGDB=y
+CONFIG_CPTCFG_CFG80211_USE_KERNEL_REGDB_KEYS=y
+CONFIG_CPTCFG_CFG80211_DEFAULT_PS=y
+CONFIG_CPTCFG_CFG80211_DEBUGFS=y
+CONFIG_CPTCFG_CFG80211_CRDA_SUPPORT=y
+
+# Enable backports mac80211 wireless stack
+CONFIG_CPTCFG_MAC80211=m
+CONFIG_CPTCFG_MAC80211_HAS_RC=y
+CONFIG_CPTCFG_MAC80211_RC_MINSTREL=y
+CONFIG_CPTCFG_MAC80211_RC_DEFAULT_MINSTREL=y
+CONFIG_CPTCFG_MAC80211_RC_DEFAULT="minstrel_ht"
+CONFIG_CPTCFG_MAC80211_MESH=y
+CONFIG_CPTCFG_MAC80211_LEDS=y
+CONFIG_CPTCFG_MAC80211_DEBUGFS=y
+CONFIG_CPTCFG_MAC80211_MESSAGE_TRACING=y
+CONFIG_CPTCFG_MAC80211_DEBUG_MENU=y
+
+# ============================================================================
+# Backports ATH11K Driver
+# ============================================================================
+
+# Disable in-tree ATH drivers to avoid conflicts
+# CONFIG_ATH_COMMON is not set
+# CONFIG_ATH10K is not set
+# CONFIG_ATH11K is not set
+
+# Enable backports WLAN drivers
+CONFIG_CPTCFG_WLAN=y
+CONFIG_CPTCFG_WLAN_VENDOR_ATH=y
+
+# Enable ATH common infrastructure
+CONFIG_CPTCFG_ATH_COMMON=m
+
+# Enable ATH11K base driver (as module)
+CONFIG_CPTCFG_ATH11K=m
+
+# Enable ATH11K debugging support
+CONFIG_CPTCFG_ATH11K_DEBUG=y
+CONFIG_CPTCFG_ATH11K_DEBUGFS=y
+CONFIG_CPTCFG_ATH11K_TRACING=y
+
+# Enable ATH11K AHB support (required for QCA6750 integrated)
+CONFIG_CPTCFG_ATH11K_AHB=m
+
+# Disable PCIe/SNOC (not used for integrated chipset)
+# CONFIG_CPTCFG_ATH11K_PCI is not set
+# CONFIG_CPTCFG_ATH11K_SNOC is not set
+
+# Enable ATH11K advanced features
+CONFIG_CPTCFG_ATH11K_SPECTRAL=y
+
+# ============================================================================
+# ICNSS2 Platform Driver (Integrated)
+# ============================================================================
+
+# Enable Qualcomm architecture support
+CONFIG_ARCH_QCOM=y
+
+# Enable CNSS utilities (dependency for ICNSS2)
+CONFIG_CNSS_UTILS=m
+
+# Enable CNSS QMI service (dependency for ICNSS2_QMI)
+CONFIG_CNSS_QMI_SVC=m
+
+# Enable ICNSS2 base driver (as module)
+CONFIG_ICNSS2=m
+
+# Enable ICNSS2 QMI support for firmware communication
+CONFIG_ICNSS2_QMI=y
+
+# Enable ICNSS2 debug support for verbose logging
+CONFIG_ICNSS2_DEBUG=y
+
+# Enable QCA6750 chipset support
+CONFIG_CNSS_QCA6750=y
+
+# Disable other chipsets (not applicable for this configuration)
+# CONFIG_CNSS_QCA6290 is not set
+# CONFIG_CNSS_QCA6390 is not set
+# CONFIG_CNSS_QCA6490 is not set
+# CONFIG_CNSS_WCN7850 is not set
+
+# ============================================================================
+# Power Management and Clock Dependencies
+# ============================================================================
+
+# Enable power domain support for integrated WiFi
+CONFIG_PM=y
+CONFIG_PM_GENERIC_DOMAINS=y
+CONFIG_PM_GENERIC_DOMAINS_OF=y
+
+# Enable clock framework support
+CONFIG_COMMON_CLK=y
+CONFIG_COMMON_CLK_QCOM=y
+
+# Enable regulator support for power management
+CONFIG_REGULATOR=y
+CONFIG_REGULATOR_QCOM_RPM=y
+CONFIG_REGULATOR_QCOM_RPMH=y
+
+# Enable interconnect support for bandwidth management
+CONFIG_INTERCONNECT=y
+CONFIG_INTERCONNECT_QCOM=y
+
+# ============================================================================
+# Additional Dependencies
+# ============================================================================
+
+# Ensure wireless core is enabled
+CONFIG_WIRELESS=y
+CONFIG_WEXT_CORE=y
+CONFIG_WEXT_PROC=y
+CONFIG_WEXT_SPY=y
+CONFIG_WEXT_PRIV=y
+
+# Ensure crypto support for wireless
+CONFIG_CRYPTO=y
+CONFIG_CRYPTO_AES=y
+CONFIG_CRYPTO_CCM=y
+CONFIG_CRYPTO_GCM=y
+CONFIG_CRYPTO_CMAC=y
+
+# Ensure firmware loading support
+CONFIG_FW_LOADER=y
+CONFIG_FW_LOADER_USER_HELPER=y
+
+# Enable device tree support
+CONFIG_OF=y
+CONFIG_OF_ADDRESS=y
+CONFIG_OF_IRQ=y

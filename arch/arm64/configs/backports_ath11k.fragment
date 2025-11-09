@@ -1,0 +1,42 @@
+# Backports ATH11K Driver Configuration
+# This fragment enables ATH11K WiFi 6 (802.11ax) driver from backports (v5.10)
+# Requires: backports_wireless.fragment (cfg80211 + mac80211)
+
+# Disable in-tree ATH drivers to avoid conflicts
+# CONFIG_ATH_COMMON is not set
+# CONFIG_ATH10K is not set
+# CONFIG_ATH11K is not set
+
+# Enable backports WLAN drivers
+CONFIG_CPTCFG_WLAN=y
+
+# Enable Atheros wireless drivers
+CONFIG_CPTCFG_WLAN_VENDOR_ATH=y
+
+# Enable ATH common infrastructure
+CONFIG_CPTCFG_ATH_COMMON=m
+
+# Enable ATH11K base driver (as module)
+CONFIG_CPTCFG_ATH11K=m
+
+# Enable ATH11K debugging support
+CONFIG_CPTCFG_ATH11K_DEBUG=y
+CONFIG_CPTCFG_ATH11K_DEBUGFS=y
+CONFIG_CPTCFG_ATH11K_TRACING=y
+
+# Enable ATH11K bus variants
+# PCIe support for QCA6390, QCA6490, WCN7850
+CONFIG_CPTCFG_ATH11K_PCI=m
+
+# AHB support for QCA6750 (integrated)
+CONFIG_CPTCFG_ATH11K_AHB=m
+
+# SNOC support (if needed for specific platforms)
+# CONFIG_CPTCFG_ATH11K_SNOC is not set
+
+# Enable ATH11K advanced features
+CONFIG_CPTCFG_ATH11K_SPECTRAL=y
+
+# Thermal monitoring (if available in backports)
+# CONFIG_CPTCFG_ATH11K_THERMAL is not set
+
