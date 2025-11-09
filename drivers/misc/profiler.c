@@ -204,7 +204,7 @@ static int profiler_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-static int compat_get_profiler_bw_info(
+static int __maybe_unused compat_get_profiler_bw_info(
 		struct compat_profiler_bw_cntrs_req __user *data32,
 		struct profiler_bw_cntrs_req __user *data)
 {
@@ -221,7 +221,7 @@ static int compat_get_profiler_bw_info(
 	return err;
 }
 
-static int compat_put_profiler_bw_info(
+static int __maybe_unused compat_put_profiler_bw_info(
 		struct compat_profiler_bw_cntrs_req __user *data32,
 		struct profiler_bw_cntrs_req __user *data)
 {
@@ -238,7 +238,7 @@ static int compat_put_profiler_bw_info(
 	return err;
 }
 
-static unsigned int convert_cmd(unsigned int cmd)
+static unsigned int __maybe_unused convert_cmd(unsigned int cmd)
 {
 	switch (cmd) {
 	case COMPAT_PROFILER_IOCTL_GET_BW_INFO:

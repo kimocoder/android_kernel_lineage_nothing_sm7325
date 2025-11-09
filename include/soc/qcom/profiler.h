@@ -6,6 +6,10 @@
 #ifndef __PROFILER_H_
 #define __PROFILER_H_
 
+#include <linux/types.h>
+#ifndef compat_uint_t
+#define compat_uint_t u32
+#endif
 
 struct profiler_bw_cntrs_req {
 	uint32_t llcc_total;
