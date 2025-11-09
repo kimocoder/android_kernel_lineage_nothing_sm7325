@@ -606,6 +606,8 @@ struct msm_vidc_inst {
 	bool boost_qp_enabled;
 	u32 boost_min_qp;
 	u32 boost_max_qp;
+	u32 reconfig_OutPort_height;
+	u32 reconfig_OutPort_width;
 };
 
 extern struct msm_vidc_drv *vidc_driver;
