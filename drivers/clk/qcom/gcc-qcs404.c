@@ -23,6 +23,14 @@
 #include "reset.h"
 #include "vdd-level-404.h"
 
+#ifndef P_GPLL0_OUT_AUX
+#define P_GPLL0_OUT_AUX   0
+#endif
+
+#ifndef P_XO
+#define P_XO              0
+#endif
+
 static DEFINE_VDD_REGULATORS(vdd_cx, VDD_NUM, 1, vdd_corner);
 static DEFINE_VDD_REGULATORS(vdd_sr_pll, VDD_SR_PLL_NUM, 1, vdd_sr_levels);
 
