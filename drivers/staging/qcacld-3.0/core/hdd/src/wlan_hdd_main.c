@@ -404,7 +404,6 @@ QDF_STATUS hdd_common_roam_callback(struct wlan_objmgr_psoc *psoc,
 		break;
 	case QDF_SAP_MODE:
 	case QDF_P2P_GO_MODE:
-	case QDF_MONITOR_MODE:
 		status = wlansap_roam_callback(adapter->session.ap.sap_context,
 					       roam_info, roam_id, roam_status,
 					       roam_result);

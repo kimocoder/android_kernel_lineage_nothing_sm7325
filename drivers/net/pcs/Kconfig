@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# PCS Layer Configuration
+#
+
+menu "PCS device drivers"
+
+config PCS_XPCS
+	tristate "Synopsys DesignWare XPCS controller"
+	depends on MDIO_DEVICE && MDIO_BUS
+	help
+	  This module provides helper functions for Synopsys DesignWare XPCS
+	  controllers.
+
+config PCS_LYNX
+	tristate
+	help
+	  This module provides helpers to phylink for managing the Lynx PCS
+	  which is part of the Layerscape and QorIQ Ethernet SERDES.
+
+config PCS_QCOM
+	bool "Qualcomm Technologies, Inc. XPCS controller"
+	select DWMAC_QCOM_ETHQOS
+	help
+	  PCS_QCOM provides the Qualcomm Technologies, Inc. XPCS driver
+	  for XGMAC. It uses SerDes for SGMII, and is compatible with both
+	  SGMII and USXGMII PHY interfaces. It supports SGMII-plus as well,
+	  for 2.5Gbps Full Duplex mode. It's role is to support Clause 37
+	  Autonegotiation and EEE for STMMAC Ethernet controllers.
+
+endmenu

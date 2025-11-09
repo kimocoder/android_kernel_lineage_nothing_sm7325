@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/ipa_fmwk.h>
@@ -111,7 +111,8 @@ struct ipa_fmwk_contex {
 	struct mutex lock;
 	ipa_uc_ready_cb uc_ready_cb;
 	void *uc_ready_priv;
-	struct ipa_eth_ready *eth_ready_info;
+	ipa_eth_ready_cb eth_ready_cb;
+	void *eth_userdata;
 	enum ipa_uc_offload_proto proto;
 
 	/* ipa core driver APIs */
@@ -204,14 +205,6 @@ struct ipa_fmwk_contex {
 
 	int (*ipa_unregister_rmnet_ctl_cb)(void);
 
-	int (*ipa_add_hdr)(struct ipa_ioc_add_hdr *hdrs);
-
-	int (*ipa_del_hdr)(struct ipa_ioc_del_hdr *hdls);
-
-	int (*ipa_get_hdr)(struct ipa_ioc_get_hdr *lookup);
-
-	int (*ipa_deregister_intf)(const char *name);
-
 	/* rmnet_ll APIs */
 	int (*ipa_rmnet_ll_xmit)(struct sk_buff *skb);
 
@@ -229,6 +222,14 @@ struct ipa_fmwk_contex {
 	int (*ipa_register_notifier)(void *fn_ptr);
 
 	int (*ipa_unregister_notifier)(void *fn_ptr);
+
+	int (*ipa_add_hdr)(struct ipa_ioc_add_hdr *hdrs);
+
+	int (*ipa_del_hdr)(struct ipa_ioc_del_hdr *hdls);
+
+	int (*ipa_get_hdr)(struct ipa_ioc_get_hdr *lookup);
+
+	int (*ipa_deregister_intf)(const char *name);
 
 	/* ipa_usb APIs */
 	int (*ipa_usb_init_teth_prot)(enum ipa_usb_teth_prot teth_prot,
@@ -262,6 +263,8 @@ struct ipa_fmwk_contex {
 	/* ipa_wdi3 APIs */
 	int (*ipa_wdi_init)(struct ipa_wdi_init_in_params *in,
 		struct ipa_wdi_init_out_params *out);
+
+	int (*ipa_get_wdi_version)(void);
 
 	int (*ipa_wdi_cleanup)(void);
 
@@ -297,8 +300,6 @@ struct ipa_fmwk_contex {
 	int (*ipa_wdi_bw_monitor)(struct ipa_wdi_bw_info *info);
 
 	int (*ipa_wdi_sw_stats)(struct ipa_wdi_tx_info *info);
-
-	int (*ipa_get_wdi_version)(void);
 
 	int (*ipa_enable_wdi_pipe)(u32 clnt_hdl);
 
@@ -347,6 +348,35 @@ struct ipa_fmwk_contex {
 
 	int (*ipa_wdi_release_smmu_mapping_per_inst)(u32 hdl, u32 num_buffers,
 		struct ipa_wdi_buffer_info *info);
+
+	int (*ipa_wdi_opt_dpath_register_flt_cb_per_inst)(
+		ipa_wdi_hdl_t hdl,
+		ipa_wdi_opt_dpath_flt_rsrv_cb flt_rsrv_cb,
+		ipa_wdi_opt_dpath_flt_rsrv_rel_cb flt_rsrv_rel_cb,
+		ipa_wdi_opt_dpath_flt_add_cb flt_add_cb,
+		ipa_wdi_opt_dpath_flt_rem_cb flt_rem_cb);
+
+	int (*ipa_wdi_opt_dpath_notify_flt_rsvd_per_inst)(ipa_wdi_hdl_t hdl,
+		bool is_success);
+
+	int (*ipa_wdi_opt_dpath_notify_flt_rlsd_per_inst)(ipa_wdi_hdl_t hdl,
+		bool is_success);
+
+	int (*ipa_wdi_opt_dpath_rsrv_filter_req)(
+			struct ipa_wlan_opt_dp_rsrv_filter_req_msg_v01 *req,
+			struct ipa_wlan_opt_dp_rsrv_filter_resp_msg_v01 *resp);
+
+	int (*ipa_wdi_opt_dpath_add_filter_req)(
+			struct ipa_wlan_opt_dp_add_filter_req_msg_v01 *req,
+			struct ipa_wlan_opt_dp_add_filter_complt_ind_msg_v01 *ind);
+
+	int (*ipa_wdi_opt_dpath_remove_filter_req)(
+				struct ipa_wlan_opt_dp_remove_filter_req_msg_v01 *req,
+				struct ipa_wlan_opt_dp_remove_filter_complt_ind_msg_v01 *ind);
+
+	int (*ipa_wdi_opt_dpath_remove_all_filter_req)(
+				struct ipa_wlan_opt_dp_remove_all_filter_req_msg_v01 *req,
+				struct ipa_wlan_opt_dp_remove_all_filter_resp_msg_v01 *resp);
 
 	/* ipa_gsb APIs*/
 	int (*ipa_bridge_init)(struct ipa_bridge_init_params *params, u32 *hdl);
@@ -469,8 +499,26 @@ struct ipa_fmwk_contex {
 
 	bool (*ipa_eth_client_exist)(
 		enum ipa_eth_client_type eth_client_type, int inst_id);
+
+	int (*ipa_eth_get_config_type)(enum ipa_eth_client_type client_type,
+		int inst_id, struct ipa_eth_config *eth_config);
+
+	int (*ipa_eth_client_enable_pipes)(struct ipa_eth_client *client);
+
+	int (*ipa_eth_client_disable_pipes)(struct ipa_eth_client *client);
+
 	int (*ipa_add_socksv5_conn)(struct ipa_socksv5_info *info);
 	int (*ipa_del_socksv5_conn)(uint32_t handle);
+
+	int (*ipa_eth_qos_get_num_pipes)(
+		u8 inst_id, u8 *num_pipes, enum ipa_eth_pipe_direction dir);
+	int (*ipa_eth_qos_get_qos_info)
+	(
+		u8 inst_id,
+		u8 idx,
+		struct ipa_eth_qos_info *info,
+		enum ipa_eth_pipe_direction dir
+	);
 };
 
 static struct ipa_fmwk_contex *ipa_fmwk_ctx;
@@ -508,10 +556,13 @@ static inline void ipa_late_register_ready_cb(void)
 		}
 	}
 
-	if (ipa_fmwk_ctx->eth_ready_info) {
+	if (ipa_fmwk_ctx->eth_ready_cb) {
+		struct ipa_eth_ready ready_info;
+
 		/* just late call to ipa_eth_register_ready_cb */
-		ipa_fmwk_ctx->ipa_eth_register_ready_cb(
-			ipa_fmwk_ctx->eth_ready_info);
+		ready_info.notify = ipa_fmwk_ctx->eth_ready_cb;
+		ready_info.userdata = ipa_fmwk_ctx->eth_userdata;
+		ipa_fmwk_ctx->ipa_eth_register_ready_cb(&ready_info);
 		/* nobody cares anymore about ready_info->is_eth_ready since
 		 * if we got here it means that we already returned false there
 		 */
@@ -575,7 +626,6 @@ int ipa_fmwk_register_ipa(const struct ipa_core_data *in)
 	ipa_fmwk_ctx->ipa_register_rmnet_ctl_cb = in->ipa_register_rmnet_ctl_cb;
 	ipa_fmwk_ctx->ipa_unregister_rmnet_ctl_cb =
 		in->ipa_unregister_rmnet_ctl_cb;
-	ipa_fmwk_ctx->ipa_get_default_aggr_time_limit = in->ipa_get_default_aggr_time_limit;
 	ipa_fmwk_ctx->ipa_enable_wdi_pipe = in->ipa_enable_wdi_pipe;
 	ipa_fmwk_ctx->ipa_disable_wdi_pipe = in->ipa_disable_wdi_pipe;
 	ipa_fmwk_ctx->ipa_resume_wdi_pipe = in->ipa_resume_wdi_pipe;
@@ -589,7 +639,10 @@ int ipa_fmwk_register_ipa(const struct ipa_core_data *in)
 	ipa_fmwk_ctx->ipa_unregister_rmnet_ll_cb =
 		in->ipa_unregister_rmnet_ll_cb;
 	ipa_fmwk_ctx->ipa_register_notifier =
+		in->ipa_register_notifier;
+	ipa_fmwk_ctx->ipa_unregister_notifier =
 		in->ipa_unregister_notifier;
+	ipa_fmwk_ctx->ipa_get_default_aggr_time_limit = in->ipa_get_default_aggr_time_limit;
 	ipa_fmwk_ctx->ipa_add_socksv5_conn = in->ipa_add_socksv5_conn;
 	ipa_fmwk_ctx->ipa_del_socksv5_conn = in->ipa_del_socksv5_conn;
 
@@ -612,6 +665,40 @@ bool ipa_is_ready(void)
 	return ipa_fmwk_ctx->ipa_ready;
 }
 EXPORT_SYMBOL(ipa_is_ready);
+
+#if IS_ENABLED(CONFIG_DEEPSLEEP) || IS_ENABLED(CONFIG_HIBERNATION)
+int ipa_fmwk_deepsleep_entry_ipa(void)
+{
+	if (!ipa_fmwk_ctx) {
+		pr_err("ipa framework hasn't been initialized yet\n");
+		return -EPERM;
+	}
+
+	mutex_lock(&ipa_fmwk_ctx->lock);
+	ipa_fmwk_ctx->ipa_ready = false;
+	mutex_unlock(&ipa_fmwk_ctx->lock);
+	pr_info("IPA driver is now in exit state\n");
+
+	return 0;
+}
+EXPORT_SYMBOL(ipa_fmwk_deepsleep_entry_ipa);
+
+int ipa_fmwk_deepsleep_exit_ipa(void)
+{
+	if (!ipa_fmwk_ctx) {
+		pr_err("ipa framework hasn't been initialized yet\n");
+		return -EPERM;
+	}
+
+	mutex_lock(&ipa_fmwk_ctx->lock);
+	ipa_trigger_ipa_ready_cbs();
+	ipa_fmwk_ctx->ipa_ready = true;
+	mutex_unlock(&ipa_fmwk_ctx->lock);
+	pr_info("IPA driver is now in ready state\n");
+	return 0;
+}
+EXPORT_SYMBOL(ipa_fmwk_deepsleep_exit_ipa);
+#endif
 
 int ipa_register_ipa_ready_cb(void(*ipa_ready_cb)(void *user_data),
 	void *user_data)
@@ -1276,8 +1363,8 @@ int ipa_fmwk_register_ipa_wdi3(const struct ipa_wdi3_data *in)
 		|| ipa_fmwk_ctx->ipa_wdi_create_smmu_mapping
 		|| ipa_fmwk_ctx->ipa_wdi_release_smmu_mapping
 		|| ipa_fmwk_ctx->ipa_wdi_get_stats
-		|| ipa_fmwk_ctx->ipa_get_wdi_version
 		|| ipa_fmwk_ctx->ipa_wdi_sw_stats
+		|| ipa_fmwk_ctx->ipa_get_wdi_version
 		|| ipa_fmwk_ctx->ipa_wdi_is_tx1_used
 		|| ipa_fmwk_ctx->ipa_wdi_get_capabilities
 		|| ipa_fmwk_ctx->ipa_wdi_init_per_inst
@@ -1290,7 +1377,15 @@ int ipa_fmwk_register_ipa_wdi3(const struct ipa_wdi3_data *in)
 		|| ipa_fmwk_ctx->ipa_wdi_disable_pipes_per_inst
 		|| ipa_fmwk_ctx->ipa_wdi_set_perf_profile_per_inst
 		|| ipa_fmwk_ctx->ipa_wdi_create_smmu_mapping_per_inst
-		|| ipa_fmwk_ctx->ipa_wdi_release_smmu_mapping_per_inst) {
+		|| ipa_fmwk_ctx->ipa_wdi_release_smmu_mapping_per_inst
+		|| ipa_fmwk_ctx->ipa_wdi_opt_dpath_register_flt_cb_per_inst
+		|| ipa_fmwk_ctx->ipa_wdi_opt_dpath_notify_flt_rsvd_per_inst
+		|| ipa_fmwk_ctx->ipa_wdi_opt_dpath_notify_flt_rlsd_per_inst
+		|| ipa_fmwk_ctx->ipa_wdi_opt_dpath_rsrv_filter_req
+		|| ipa_fmwk_ctx->ipa_wdi_opt_dpath_add_filter_req
+		|| ipa_fmwk_ctx->ipa_wdi_opt_dpath_remove_filter_req
+		|| ipa_fmwk_ctx->ipa_wdi_opt_dpath_remove_all_filter_req
+		){
 		pr_err("ipa_wdi3 APIs were already initialized\n");
 		return -EPERM;
 	}
@@ -1333,6 +1428,20 @@ int ipa_fmwk_register_ipa_wdi3(const struct ipa_wdi3_data *in)
 		in->ipa_wdi_create_smmu_mapping_per_inst;
 	ipa_fmwk_ctx->ipa_wdi_release_smmu_mapping_per_inst =
 		in->ipa_wdi_release_smmu_mapping_per_inst;
+	ipa_fmwk_ctx->ipa_wdi_opt_dpath_register_flt_cb_per_inst =
+		in->ipa_wdi_opt_dpath_register_flt_cb_per_inst;
+	ipa_fmwk_ctx->ipa_wdi_opt_dpath_notify_flt_rsvd_per_inst =
+		in->ipa_wdi_opt_dpath_notify_flt_rsvd_per_inst;
+	ipa_fmwk_ctx->ipa_wdi_opt_dpath_notify_flt_rlsd_per_inst =
+		in->ipa_wdi_opt_dpath_notify_flt_rlsd_per_inst;
+	ipa_fmwk_ctx->ipa_wdi_opt_dpath_rsrv_filter_req =
+		in->ipa_wdi_opt_dpath_rsrv_filter_req;
+	ipa_fmwk_ctx->ipa_wdi_opt_dpath_add_filter_req =
+		in->ipa_wdi_opt_dpath_add_filter_req;
+	ipa_fmwk_ctx->ipa_wdi_opt_dpath_remove_filter_req =
+		in->ipa_wdi_opt_dpath_remove_filter_req;
+	ipa_fmwk_ctx->ipa_wdi_opt_dpath_remove_all_filter_req =
+		in->ipa_wdi_opt_dpath_remove_all_filter_req;
 	pr_info("ipa_wdi3 registered successfully\n");
 
 	return 0;
@@ -1351,6 +1460,16 @@ int ipa_wdi_init(struct ipa_wdi_init_in_params *in,
 	return ret;
 }
 EXPORT_SYMBOL(ipa_wdi_init);
+
+int ipa_get_wdi_version(void)
+{
+	int ret;
+
+	IPA_FMWK_DISPATCH_RETURN(ipa_get_wdi_version);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_get_wdi_version);
 
 bool ipa_wdi_is_tx1_used(void)
 {
@@ -1616,16 +1735,6 @@ int ipa_wdi_get_stats(struct IpaHwStatsWDIInfoData_t *stats)
 }
 EXPORT_SYMBOL(ipa_wdi_get_stats);
 
-int ipa_get_wdi_version(void)
-{
-	int ret;
-
-	IPA_FMWK_DISPATCH_RETURN(ipa_get_wdi_version);
-
-	return ret;
-}
-EXPORT_SYMBOL(ipa_get_wdi_version);
-
 int ipa_enable_wdi_pipe(u32 clnt_hdl)
 {
 	int ret;
@@ -1686,6 +1795,102 @@ int ipa_disconnect_wdi_pipe(u32 clnt_hdl)
 	return ret;
 }
 EXPORT_SYMBOL(ipa_disconnect_wdi_pipe);
+
+int ipa_wdi_opt_dpath_register_flt_cb_per_inst(
+	ipa_wdi_hdl_t hdl,
+	ipa_wdi_opt_dpath_flt_rsrv_cb flt_rsrv_cb,
+	ipa_wdi_opt_dpath_flt_rsrv_rel_cb flt_rsrv_rel_cb,
+	ipa_wdi_opt_dpath_flt_add_cb flt_add_cb,
+	ipa_wdi_opt_dpath_flt_rem_cb flt_rem_cb)
+{
+	int ret;
+
+	IPA_FMWK_DISPATCH_RETURN(ipa_wdi_opt_dpath_register_flt_cb_per_inst,
+		hdl,
+		flt_rsrv_cb,
+		flt_rsrv_rel_cb,
+		flt_add_cb,
+		flt_rem_cb);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_wdi_opt_dpath_register_flt_cb_per_inst);
+
+
+int ipa_wdi_opt_dpath_notify_flt_rsvd_per_inst(ipa_wdi_hdl_t hdl,
+	bool is_success)
+
+{
+	int ret;
+
+	IPA_FMWK_DISPATCH_RETURN(ipa_wdi_opt_dpath_notify_flt_rsvd_per_inst,
+		hdl, is_success);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_wdi_opt_dpath_notify_flt_rsvd_per_inst);
+
+int ipa_wdi_opt_dpath_notify_flt_rlsd_per_inst(ipa_wdi_hdl_t hdl,
+	bool is_success)
+
+{
+	int ret;
+
+	IPA_FMWK_DISPATCH_RETURN(ipa_wdi_opt_dpath_notify_flt_rlsd_per_inst, hdl, is_success);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_wdi_opt_dpath_notify_flt_rlsd_per_inst);
+
+
+int ipa_wdi_opt_dpath_rsrv_filter_req(
+		struct ipa_wlan_opt_dp_rsrv_filter_req_msg_v01 *req,
+		struct ipa_wlan_opt_dp_rsrv_filter_resp_msg_v01 *resp)
+{
+	int ret;
+
+	IPA_FMWK_DISPATCH_RETURN(ipa_wdi_opt_dpath_rsrv_filter_req, req, resp);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_wdi_opt_dpath_rsrv_filter_req);
+
+int ipa_wdi_opt_dpath_add_filter_req(
+		struct ipa_wlan_opt_dp_add_filter_req_msg_v01 *req,
+		struct ipa_wlan_opt_dp_add_filter_complt_ind_msg_v01 *ind)
+{
+	int ret;
+
+	IPA_FMWK_DISPATCH_RETURN(ipa_wdi_opt_dpath_add_filter_req, req, ind);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_wdi_opt_dpath_add_filter_req);
+
+
+int ipa_wdi_opt_dpath_remove_filter_req(
+			struct ipa_wlan_opt_dp_remove_filter_req_msg_v01 *req,
+			struct ipa_wlan_opt_dp_remove_filter_complt_ind_msg_v01 *ind)
+{
+	int ret;
+
+	IPA_FMWK_DISPATCH_RETURN(ipa_wdi_opt_dpath_remove_filter_req, req, ind);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_wdi_opt_dpath_remove_filter_req);
+
+int ipa_wdi_opt_dpath_remove_all_filter_req(
+			struct ipa_wlan_opt_dp_remove_all_filter_req_msg_v01 *req,
+			struct ipa_wlan_opt_dp_remove_all_filter_resp_msg_v01 *resp)
+{
+	int ret;
+
+	IPA_FMWK_DISPATCH_RETURN(ipa_wdi_opt_dpath_remove_all_filter_req, req, resp);
+
+	return ret;
+}
+EXPORT_SYMBOL(ipa_wdi_opt_dpath_remove_all_filter_req);
 
 int ipa_reg_uc_rdyCB(struct ipa_wdi_uc_ready_params *param)
 {
@@ -2403,7 +2608,12 @@ int ipa_fmwk_register_ipa_eth(const struct ipa_eth_data *in)
 		|| ipa_fmwk_ctx->ipa_eth_client_unreg_intf
 		|| ipa_fmwk_ctx->ipa_eth_client_set_perf_profile
 		|| ipa_fmwk_ctx->ipa_eth_get_ipa_client_type_from_eth_type
-		|| ipa_fmwk_ctx->ipa_eth_client_exist) {
+		|| ipa_fmwk_ctx->ipa_eth_client_exist
+		|| ipa_fmwk_ctx->ipa_eth_get_config_type
+		|| ipa_fmwk_ctx->ipa_eth_qos_get_num_pipes
+		|| ipa_fmwk_ctx->ipa_eth_qos_get_qos_info
+		|| ipa_fmwk_ctx->ipa_eth_client_enable_pipes
+		|| ipa_fmwk_ctx->ipa_eth_client_disable_pipes) {
 		pr_err("ipa_eth APIs were already initialized\n");
 		return -EPERM;
 	}
@@ -2422,6 +2632,16 @@ int ipa_fmwk_register_ipa_eth(const struct ipa_eth_data *in)
 		in->ipa_eth_get_ipa_client_type_from_eth_type;
 	ipa_fmwk_ctx->ipa_eth_client_exist =
 		in->ipa_eth_client_exist;
+	ipa_fmwk_ctx->ipa_eth_get_config_type =
+		in->ipa_eth_get_config_type;
+	ipa_fmwk_ctx->ipa_eth_qos_get_num_pipes =
+		in->ipa_eth_qos_get_num_pipes;
+	ipa_fmwk_ctx->ipa_eth_qos_get_qos_info =
+		in->ipa_eth_qos_get_qos_info;
+	ipa_fmwk_ctx->ipa_eth_client_enable_pipes =
+		in->ipa_eth_client_enable_pipes;
+	ipa_fmwk_ctx->ipa_eth_client_disable_pipes =
+		in->ipa_eth_client_disable_pipes;
 
 	pr_info("ipa_eth registered successfully\n");
 
@@ -2445,7 +2665,8 @@ int ipa_eth_register_ready_cb(struct ipa_eth_ready *ready_info)
 		mutex_unlock(&ipa_fmwk_ctx->lock);
 		return ret;
 	}
-	ipa_fmwk_ctx->eth_ready_info = ready_info;
+	ipa_fmwk_ctx->eth_ready_cb = ready_info->notify;
+	ipa_fmwk_ctx->eth_userdata = ready_info->userdata;
 	ready_info->is_eth_ready = false;
 	mutex_unlock(&ipa_fmwk_ctx->lock);
 
@@ -2555,6 +2776,67 @@ bool ipa_eth_client_exist(
 	return ret;
 }
 EXPORT_SYMBOL(ipa_eth_client_exist);
+
+int ipa_eth_get_config_type(
+	enum ipa_eth_client_type client_type, int inst_id, struct ipa_eth_config *eth_config)
+{
+	int ret;
+
+	IPA_FMWK_DISPATCH_RETURN_DP(ipa_eth_get_config_type,
+		client_type, inst_id, eth_config);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ipa_eth_get_config_type);
+
+int ipa_eth_qos_get_num_pipes(
+	u8 inst_id, u8 *num_pipes, enum ipa_eth_pipe_direction dir)
+{
+	int ret;
+
+	IPA_FMWK_DISPATCH_RETURN_DP(ipa_eth_qos_get_num_pipes,
+		inst_id, num_pipes, dir);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ipa_eth_qos_get_num_pipes);
+
+int ipa_eth_qos_get_qos_info(
+	u8 inst_id, u8 idx, struct ipa_eth_qos_info *info,
+	enum ipa_eth_pipe_direction dir)
+{
+	int ret;
+
+	IPA_FMWK_DISPATCH_RETURN_DP(ipa_eth_qos_get_qos_info,
+		inst_id, idx, info, dir);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ipa_eth_qos_get_qos_info);
+
+int ipa_eth_client_enable_pipes(
+	struct ipa_eth_client *client)
+{
+	int ret;
+
+	IPA_FMWK_DISPATCH_RETURN_DP(ipa_eth_client_enable_pipes,
+		client);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ipa_eth_client_enable_pipes);
+
+int ipa_eth_client_disable_pipes(
+	struct ipa_eth_client *client)
+{
+	int ret;
+
+	IPA_FMWK_DISPATCH_RETURN_DP(ipa_eth_client_disable_pipes,
+		client);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ipa_eth_client_disable_pipes);
 
 /* module functions */
 static int __init ipa_fmwk_init(void)

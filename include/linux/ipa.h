@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _IPA_H_
@@ -19,7 +19,19 @@
 #define IPA_APPS_MAX_BW_IN_MBPS 700
 #define IPA_BW_THRESHOLD_MAX 3
 
-#define IPA_MAX_CH_STATS_SUPPORTED 5
+#define IPA_MAX_CH_STATS_SUPPORTED 6
+#define IPA_EP_ARR_SIZE 2
+#define IPA_EP_PER_REG 32
+
+/* Notifiers for rmnet driver */
+#define BUFF_ABOVE_HIGH_THRESHOLD_FOR_DEFAULT_PIPE        1
+#define BUFF_ABOVE_HIGH_THRESHOLD_FOR_COAL_PIPE           2
+#define BUFF_BELOW_LOW_THRESHOLD_FOR_DEFAULT_PIPE         3
+#define BUFF_BELOW_LOW_THRESHOLD_FOR_COAL_PIPE            4
+#define BUFF_ABOVE_HIGH_THRESHOLD_FOR_LL_PIPE             5
+#define BUFF_BELOW_LOW_THRESHOLD_FOR_LL_PIPE              6
+#define FREE_PAGE_TASK_SCHEDULED                          7
+#define FREE_PAGE_TASK_SCHEDULED_LL                       8
 
 /**
  * the attributes of the socksv5 options
@@ -36,12 +48,6 @@
 #define IPA_SOCKsv5_ADD_V6_V4_COM_PM	1
 #define IPA_SOCKsv5_ADD_V4_V6_COM_PM	2
 #define IPA_SOCKsv5_ADD_V6_V6_COM_PM	3
-
-/* Notifiers for rmnet driver */
-#define BUFF_ABOVE_HIGH_THRESHOLD_FOR_DEFAULT_PIPE        1
-#define BUFF_ABOVE_HIGH_THRESHOLD_FOR_COAL_PIPE           2
-#define BUFF_BELOW_LOW_THRESHOLD_FOR_DEFAULT_PIPE         3
-#define BUFF_BELOW_LOW_THRESHOLD_FOR_COAL_PIPE            4
 
 /**
  * enum ipa_transport_type
@@ -138,13 +144,55 @@ enum hdr_total_len_or_pad_type {
 };
 
 /**
+ * enum ipa_rmnet_tx_queue: RMNET TX queue numbers
+ * (regular traffic is unmapped: skb->queue_mapping = 0)
+ * IPA_RMNET_TX_QUEUE_DEFAULT: regular traffic
+ * IPA_RMNET_TX_QUEUE_V2X: V2X traffic
+ * IPA_RMNET_TX_QUEUE_ETH_PDU: Eth PDU traffic
+ * IPA_RMNET_TX_QUEUE_IPSEC_ENCAP: traffic for HW offloaded IPsec encapsulation
+ * IPA_RMNET_TX_QUEUE_IPSEC_DECAP: traffic for HW offloaded IPsec decapsulation
+ * IPA_RMNET_TX_QUEUE_MAX: enum size, for error reporting and boundaries
+ */
+enum ipa_rmnet_tx_queue {
+	IPA_RMNET_TX_QUEUE_DEFAULT = 0,
+	IPA_RMNET_TX_QUEUE_V2X,
+	IPA_RMNET_TX_QUEUE_ETH_PDU = IPA_RMNET_TX_QUEUE_V2X,
+	IPA_RMNET_TX_QUEUE_IPSEC_ENCAP,
+	IPA_RMNET_TX_QUEUE_IPSEC_DECAP,
+	IPA_RMNET_TX_QUEUE_MAX = U16_MAX - 1,
+};
+
+/**
+ * enum ipa_rmnet_rx_queue - RMNET RX queue numbers
+ * IPA_RMNET_RX_QUEUE_DEFAULT: regular traffic
+ * IPA_RMNET_RX_QUEUE_V2X: V2X traffic
+ * IPA_RMNET_RX_QUEUE_ETH_PDU: Eth PDU traffic
+ * IPA_RMNET_RX_QUEUE_IPSEC: traffic after HW offloaded IPsec decapsulation
+ * IPA_RMNET_RX_QUEUE_IPSEC_DECAP: exception after/during HW offloaded IPsec decapsulation
+ * IPA_RMNET_RX_QUEUE_MAX: enum size, for error reporting and boundaries
+ */
+enum ipa_rmnet_rx_queue {
+	IPA_RMNET_RX_QUEUE_DEFAULT = 0,
+	IPA_RMNET_RX_QUEUE_V2X,
+	IPA_RMNET_RX_QUEUE_ETH_PDU = IPA_RMNET_RX_QUEUE_V2X,
+	IPA_RMNET_RX_QUEUE_IPSEC,
+	IPA_RMNET_RX_QUEUE_IPSEC_ERROR,
+	IPA_RMNET_RX_QUEUE_MAX = U16_MAX - 1,
+};
+
+/**
  * struct ipa_ep_cfg_nat - NAT configuration in IPA end-point
  * @nat_en:	This defines the default NAT mode for the pipe: in case of
  *		filter miss - the default NAT mode defines the NATing operation
  *		on the packet. Valid for Input Pipes only (IPA consumer)
+ * @nat_exc_suppress: 1 - NAT exception is supressed and packet will be
+ * routed using configured routing tables.
+ *	0 - NAT exception is allowed and packets will be routed to exception
+ * pipe. Valid for input pipes only (IPA consumer)
  */
 struct ipa_ep_cfg_nat {
 	enum ipa_nat_en_type nat_en;
+	bool nat_exc_suppress;
 };
 
 /**
@@ -274,10 +322,19 @@ struct ipa_ep_cfg_hdr_ext {
  *		This parameter is valid for Mode=DMA and not valid for
  *		Mode=Basic
  *		Valid for Input Pipes only (IPA Consumer)
+ * @drbip_en:	Set bit to indicate HPS-sequence configured on this pipe passes
+ *		through DRBIP-accelerator. can only be set if BEARER_CNTX_ENABLE field
+ *		for same consumer is set as well. Valid for consumer pipes only.
+ * @bearer_ctx_en: Set bit to allow support for deciphering (or ciphering)
+ *		and/or integrity-protection (DRBIP) for packets on this consumer pipe.
+ *		Deciphering/ciphering/IP-check will never be executed on pipes
+ *		with this bit off. Valid for consumer pipes only.
  */
 struct ipa_ep_cfg_mode {
 	enum ipa_mode_type mode;
 	enum ipa_client_type dst;
+	bool drbip_en;
+	bool bearer_ctx_en;
 };
 
 /**
@@ -326,6 +383,9 @@ struct ipa_ep_cfg_mode {
  *			granularity.
  *			For internal use
  *			Supported starting IPA4.5
+ * @aggr_coal_l2: enable L2  coalescing on the specifid dest pipe,
+ *			work only if AGGR_TYPE set to AGGR_TYPE_COALESCING.
+ *			Supported starting IPA5.5
  */
 struct ipa_ep_cfg_aggr {
 	enum ipa_aggr_en_type aggr_en;
@@ -337,6 +397,7 @@ struct ipa_ep_cfg_aggr {
 	bool aggr_sw_eof_active;
 	u8 pulse_generator;
 	u8 scaled_time;
+	bool aggr_coal_l2;
 };
 
 /**
@@ -444,13 +505,17 @@ enum ipa_cs_offload {
  *	input pipe (IPA consumer) specifies IPA checksum calculation.
  *	11: Reserved
  * @cs_metadata_hdr_offset: Offset in Words (4 bytes) within header in which
- *	checksum meta info header (4 bytes) starts (UL). Values are 0-15, which
+ *	checksum metadata info header (4 bytes) starts (UL). Values are 0-15, which
  *	mean 0 - 60 byte checksum header offset. Valid for input
  *	pipes only (IPA consumer)
  * @gen_qmb_master_sel: Select bit for ENDP GEN-QMB master. This is used to
  *	separate DDR & PCIe transactions in-order to limit them as
  *	a group (using MAX_WRITES/READS limiation). Valid for input and
  *	output pipes (IPA consumer+producer)
+ * @pipe_replicate_en: 1 - For consumer pipe - consumer DPL will be active.
+ *	For producer pipe - producer DPL will be active.
+ *	0 - packet replication disabled for both consumer and producer pipe.
+ *	Supported from IPA5.5 onwards.
  */
 struct ipa_ep_cfg_cfg {
 	bool frag_offload_en;
@@ -458,6 +523,36 @@ struct ipa_ep_cfg_cfg {
 	u8 cs_metadata_hdr_offset;
 	u8 gen_qmb_master_sel;
 	u8 tx_instance;
+	bool pipe_replicate_en;
+};
+
+/**
+ * struct ipa_ep_cfg_prod_cfg - IPA ENDP_INIT Producer Configuration register
+ * @tx_instance: - 0 - select TX_0 instance.
+ * 1 - select TX_1 instance.
+ * @tsp_enable: boolean to indicate TSP-enablement per producer pipe.
+ * @max_output_size_drop_enable: enable policing by max output size for TSP
+ * feature. In case of TSP_ENABLE == 1 + valid egress_tc, max output size
+ * policing will be valid regardless to this bit.
+ * @tsp_idx: TSP producer-index. Controls pointer to producer-rate database.
+ * Valid only when TSP_ENABLE field is set. Value should be unique.
+ * @max_output_size: max output size allowed per producer. Value is in 64-byte
+ * resolution for TSP feature
+ * @egress_tc_lowest: Lowest egress traffic-class index assignes to this
+ * producer.
+ * @egress_tc_highest: Highest egress traffic-class index assignes to this
+ * producer.
+ * @error_qmap_en: Enable IPsec error QMAP header insertion.
+ */
+struct ipa_ep_cfg_prod_cfg {
+	u8 tx_instance;
+	bool tsp_enable;
+	bool max_output_size_drop_enable;
+	u8 tsp_idx;
+	u8 max_output_size;
+	u8 egress_tc_lowest;
+	u8 egress_tc_highest;
+	bool error_qmap_en;
 };
 
 /**
@@ -472,8 +567,8 @@ struct ipa_ep_cfg_metadata_mask {
 };
 
 /**
- * struct ipa_ep_cfg_metadata - Meta Data configuration in IPA end-point
- * @md:	This defines the meta data from tx data descriptor
+ * struct ipa_ep_cfg_metadata - Metadata configuration in IPA end-point
+ * @md:	This defines the metadata from tx data descriptor
  * @qmap_id: qmap id
  */
 struct ipa_ep_cfg_metadata {
@@ -502,6 +597,7 @@ struct ipa_ep_cfg_ucp {
 	u16 command;
 	u32 enable;
 };
+
 /**
  * struct ipa_ep_cfg_ulso - ULSO configurations
  * @ipid_min_max_idx: A value in the range [0, 2]. Determines the registers
@@ -529,9 +625,10 @@ struct ipa_ep_cfg_ulso {
  * @route:		Routing parameters
  * @cfg:		Configuration register data
  * @metadata_mask:	Hdr metadata mask
- * @meta:		Meta Data
+ * @meta:		Metadata
  * @seq:		HPS/DPS sequencers configuration
  * @ulso:		ULSO configuration
+ * @prod_cfg:	Producer specific Configuration register data
  */
 struct ipa_ep_cfg {
 	struct ipa_ep_cfg_nat nat;
@@ -547,6 +644,7 @@ struct ipa_ep_cfg {
 	struct ipa_ep_cfg_metadata meta;
 	struct ipa_ep_cfg_seq seq;
 	struct ipa_ep_cfg_ulso ulso;
+	struct ipa_ep_cfg_prod_cfg prod_cfg;
 };
 
 /**
@@ -714,7 +812,7 @@ struct ipa_sys_connect_params {
 };
 
 /**
- * struct ipa_tx_meta - meta-data for the TX packet
+ * struct ipa_tx_meta - metadata for the TX packet
  * @dma_address: dma mapped address of TX packet
  * @dma_address_valid: is above field valid?
  */
@@ -971,7 +1069,6 @@ struct ipa_uc_dbg_rtk_ring_stats {
 	u64 busyTime;
 } __packed;
 
-
 /**
  * struct IpaHwStatsWDIRxInfoData_t - Structure holding the WDI Rx channel
  * structures
@@ -1064,8 +1161,6 @@ struct IpaHwStatsWDIInfoData_t {
  * uc is writing (WDI-2.0)
  * @rdy_comp_ring_size: size of the Rx_completion ring in bytes
  * expected to communicate about the Read pointer into the Rx Ring
- * @is_txr_rn_db_pcie_addr: tx ring PCIE doorbell address
- * @is_evt_rn_db_pcie_addr: event ring PCIE doorbell address
  */
 struct ipa_wdi_ul_params {
 	phys_addr_t rdy_ring_base_pa;
@@ -1086,8 +1181,6 @@ struct ipa_wdi_ul_params {
  * @rdy_ring_size: size of the Rx ring in bytes
  * @rdy_ring_rp_pa: physical address of the location through which IPA uc is
  * expected to communicate about the Read pointer into the Rx Ring
- * @is_txr_rn_db_pcie_addr: tx ring PCIE doorbell address
- * @is_evt_rn_db_pcie_addr: event ring PCIE doorbell address
  */
 struct ipa_wdi_ul_params_smmu {
 	struct sg_table rdy_ring;
@@ -1112,8 +1205,6 @@ struct ipa_wdi_ul_params_smmu {
  * write into to trigger the copy engine
  * @ce_ring_size: Copy Engine Ring size in bytes
  * @num_tx_buffers: Number of pkt buffers allocated
- * @is_txr_rn_db_pcie_addr: tx ring PCIE doorbell address
- * @is_evt_rn_db_pcie_addr: event ring PCIE doorbell address
  */
 struct ipa_wdi_dl_params {
 	phys_addr_t comp_ring_base_pa;
@@ -1135,8 +1226,6 @@ struct ipa_wdi_dl_params {
  * write into to trigger the copy engine
  * @ce_ring_size: Copy Engine Ring size in bytes
  * @num_tx_buffers: Number of pkt buffers allocated
- * @is_txr_rn_db_pcie_addr: tx ring PCIE doorbell address
- * @is_evt_rn_db_pcie_addr: event ring PCIE doorbell address
  */
 struct ipa_wdi_dl_params_smmu {
 	struct sg_table comp_ring;
@@ -1205,12 +1294,14 @@ struct ipa_wdi_db_params {
  * @is_uC_ready: uC loaded or not
  * @priv : callback cookie
  * @notify:	callback
+ * @inst_id: instance id of wifi instance
  */
 typedef void (*ipa_uc_ready_cb)(void *priv);
 struct ipa_wdi_uc_ready_params {
 	bool is_uC_ready;
 	void *priv;
 	ipa_uc_ready_cb notify;
+	uint8_t inst_id;
 };
 
 /**
@@ -1287,6 +1378,7 @@ enum ipa_smmu_client_type {
 	IPA_SMMU_AP_CLIENT,
 	IPA_SMMU_WIGIG_CLIENT,
 	IPA_SMMU_WLAN1_CLIENT,
+	IPA_SMMU_WLAN2_CLIENT,
 	IPA_SMMU_ETH_CLIENT,
 	IPA_SMMU_ETH1_CLIENT,
 	IPA_SMMU_CLIENT_MAX
@@ -1401,6 +1493,14 @@ struct ipa_ipv6_nat_uc_tmpl {
 	uint64_t rsv11;
 	uint64_t rsv12;
 } __packed;
+
+struct ipa_ipsec_skb_cb {
+	u32 magic	:24;
+	u32 sa_dir      :2;
+	u32 sa_idx	:6;
+};
+#define IPA_IPSEC_SKB_MAGIC 0xFF10AD
+#define IPA_IPSEC_SKB_CB(__skb) ((struct ipa_ipsec_skb_cb *)&((__skb)->cb[44]))
 
 #if IS_ENABLED(CONFIG_IPA3)
 /*
@@ -1521,11 +1621,11 @@ int ipa_restore_suspend_handler(void);
 
 /**
  * ipa_send_msg() - Send "message" from kernel client to IPA driver
- * @meta: [in] message meta-data
+ * @metadata: [in] message metadata
  * @buff: [in] the payload for message
  * @callback: [in] free callback
  *
- * Client supplies the message meta-data and payload which IPA driver buffers
+ * Client supplies the message metadata and payload which IPA driver buffers
  * till read by user-space. After read from user space IPA driver invokes the
  * callback supplied to free the message payload. Client must not touch/free
  * the message payload after calling this API.
@@ -1534,7 +1634,7 @@ int ipa_restore_suspend_handler(void);
  *
  * Note:	Should not be called from atomic context
  */
-int ipa_send_msg(struct ipa_msg_meta *meta, void *buff,
+int ipa_send_msg(struct ipa_msg_meta *metadata, void *buff,
 		  ipa_msg_free_fn callback);
 
 /*
@@ -1545,7 +1645,7 @@ int ipa_send_msg(struct ipa_msg_meta *meta, void *buff,
  * ipa_tx_dp() - Data-path tx handler
  * @dst:	[in] which IPA destination to route tx packets to
  * @skb:	[in] the packet to send
- * @metadata:	[in] TX packet meta-data
+ * @metadata:	[in] TX packet metadata
  *
  * Data-path tx handler, this is used for both SW data-path which by-passes most
  * IPA HW blocks AND the regular HW data-path for WLAN AMPDU traffic only. If
@@ -1607,7 +1707,7 @@ int ipa_register_notifier(void *fn_ptr);
 /*
  * ipa_unregister_notifier - Unregister for IPA atomic notifier
  *
- * @fn_ptr - Function pointer to get the notification
+ * @fn_ptr - Same function pointer used to get the notification
  *
  * This funciton will return 0 on success, -EAGAIN if reg fails.
  */
@@ -1712,7 +1812,6 @@ int ipa_dma_init(void);
  */
 int ipa_dma_enable(void);
 
-
 /**
  * ipa_dma_disable()- Unvote for IPA clocks.
  *
@@ -1721,7 +1820,7 @@ int ipa_dma_enable(void);
  * Return codes: 0: success
  *		-EINVAL: IPADMA is not initialized
  *		-EPERM: Operation not permitted as ipa_dma is already
- *			diabled
+ *			disabled
  *		-EFAULT: can not disable ipa_dma as there are pending
  *			memcopy works
  */
@@ -1773,10 +1872,20 @@ void ipa_dma_destroy(void);
 /*
  * Miscellaneous
  */
+void ipa_bam_reg_dump(void);
 
 int ipa_get_ep_mapping(enum ipa_client_type client);
 
 bool ipa_is_ready(void);
+
+void ipa_proxy_clk_vote(void);
+void ipa_proxy_clk_unvote(void);
+
+#if IS_ENABLED(CONFIG_DEEPSLEEP) || IS_ENABLED(CONFIG_HIBERNATION)
+int ipa_fmwk_deepsleep_entry_ipa(void);
+
+int ipa_fmwk_deepsleep_exit_ipa(void);
+#endif
 
 enum ipa_hw_type ipa_get_hw_type(void);
 
@@ -1793,14 +1902,14 @@ typedef void (*ipa_rmnet_ctl_stop_cb)(void *user_data);
 
 typedef void (*ipa_rmnet_ctl_rx_notify_cb)(void *user_data, void *rx_data);
 
-int ipa_get_default_aggr_time_limit(enum ipa_client_type client,
-	u32 *default_aggr_time_limit);
-
 typedef void (*ipa_rmnet_ll_ready_cb)(void *user_data);
 
 typedef void (*ipa_rmnet_ll_stop_cb)(void *user_data);
 
 typedef void (*ipa_rmnet_ll_rx_notify_cb)(void *user_data, void *rx_data);
+
+int ipa_get_default_aggr_time_limit(enum ipa_client_type client,
+	u32 *default_aggr_time_limit);
 
 /**
  * ipa_register_ipa_ready_cb() - register a callback to be invoked
@@ -2013,7 +2122,7 @@ static inline int ipa_restore_suspend_handler(void)
 /*
  * Messaging
  */
-static inline int ipa_send_msg(struct ipa_msg_meta *meta, void *buff,
+static inline int ipa_send_msg(struct ipa_msg_meta *metadata, void *buff,
 		ipa_msg_free_fn callback)
 {
 	return -EPERM;
@@ -2045,17 +2154,17 @@ static inline int ipa_rmnet_ll_xmit(struct sk_buff *skb)
 }
 
 /*
- * Rmnet Notifier register
+ * Yellow water mark notifier register
  */
-static inline int ipa_register_notifier(struct sk_buff *skb)
+static inline int ipa_register_notifier(void *fn_ptr)
 {
 	return -EPERM;
 }
 
 /*
- * Rmnet Notifier unregister
+ * Yellow water mark notifier unregister
  */
-static inline int ipa_unregister_notifier(struct sk_buff *skb)
+static inline int ipa_unregister_notifier(void *fn_ptr)
 {
 	return -EPERM;
 }
@@ -2160,6 +2269,7 @@ static inline void ipa_dma_destroy(void)
 /*
  * Miscellaneous
  */
+
 static inline int ipa_get_wdi_stats(struct IpaHwStatsWDIInfoData_t *stats)
 {
 	return -EPERM;
@@ -2180,6 +2290,16 @@ static inline bool ipa_is_ready(void)
 	return false;
 }
 
+static inline int ipa_fmwk_deepsleep_entry_ipa(void)
+{
+	return -EPERM;
+}
+
+static inline int ipa_fmwk_deepsleep_exit_ipa(void)
+{
+	return -EPERM;
+}
+
 static inline enum ipa_hw_type ipa_get_hw_type(void)
 {
 	return IPA_HW_None;
@@ -2188,12 +2308,6 @@ static inline enum ipa_hw_type ipa_get_hw_type(void)
 static inline int ipa_register_ipa_ready_cb(
 	void (*ipa_ready_cb)(void *user_data),
 	void *user_data)
-{
-	return -EPERM;
-}
-
-static inline int ipa_get_smmu_params(struct ipa_smmu_in_params *in,
-	struct ipa_smmu_out_params *out)
 {
 	return -EPERM;
 }
@@ -2251,12 +2365,6 @@ static inline int ipa_uc_reg_rdyCB(
 	return -EPERM;
 }
 
-static inline int ipa_get_default_aggr_time_limit(enum ipa_client_type client,
-	u32 *default_aggr_time_limit)
-{
-	return -EPERM;
-}
-
 static inline int ipa_register_rmnet_ll_cb(
 	void (*ipa_rmnet_ll_ready_cb)(void *user_data1),
 	void *user_data1,
@@ -2264,6 +2372,12 @@ static inline int ipa_register_rmnet_ll_cb(
 	void *user_data2,
 	void (*ipa_rmnet_ll_rx_notify_cb)(void *user_data3, void *rx_data),
 	void *user_data3)
+{
+	return -EPERM;
+}
+
+static inline int ipa_get_default_aggr_time_limit(enum ipa_client_type client,
+	u32 *default_aggr_time_limit)
 {
 	return -EPERM;
 }
@@ -2296,67 +2410,16 @@ static inline int ipa_put_hdr(u32 hdr_hdl)
 	return -EPERM;
 }
 
-static inline int ipa_copy_hdr(struct ipa_ioc_copy_hdr *copy)
+static inline int ipa_deregister_pull_msg(struct ipa_msg_meta *metadata)
 {
 	return -EPERM;
 }
 
-static inline int ipa_register_pull_msg(struct ipa_msg_meta *meta,
-	ipa_msg_pull_fn callback)
-{
-	return -EPERM;
-}
-
-static inline int ipa_deregister_pull_msg(struct ipa_msg_meta *meta)
-{
-	return -EPERM;
-}
-
-static inline int ipa_register_intf_ext(const char *name,
-	const struct ipa_tx_intf *tx,
-	const struct ipa_rx_intf *rx,
-	const struct ipa_ext_intf *ext)
-{
-	return -EPERM;
-}
-
-static inline int ipa_tx_dp_mul(enum ipa_client_type src,
-	struct ipa_tx_data_desc *data_desc)
-{
-	return -EPERM;
-}
-
-static inline u16 ipa_get_smem_restr_bytes(void)
-{
-	return -EPERM;
-}
-
-static inline int ipa_create_wdi_mapping(u32 num_buffers,
-	struct ipa_wdi_buffer_info *info)
-{
-	return -EPERM;
-}
-
-static inline int ipa_release_wdi_mapping(u32 num_buffers,
-	struct ipa_wdi_buffer_info *info)
-{
-	return -EPERM;
-}
-
-static inline int ipa_rm_create_resource(
-	struct ipa_rm_create_params *create_params)
-{
-	return -EPERM;
-}
-
+/*
+ * Miscellaneous
+ */
 static inline int ipa_rm_delete_resource(
 	enum ipa_rm_resource_name resource_name)
-{
-	return -EPERM;
-}
-
-static inline int ipa_rm_register(enum ipa_rm_resource_name resource_name,
-	struct ipa_rm_register_params *reg_params)
 {
 	return -EPERM;
 }
@@ -2445,18 +2508,6 @@ static inline enum ipa_rm_resource_name ipa_get_rm_resource_from_ep(
 	return -EPERM;
 }
 
-static inline void ipa_bam_reg_dump(void)
-{
-}
-
-static inline void ipa_proxy_clk_vote(void)
-{
-}
-
-static inline void ipa_proxy_clk_unvote(void)
-{
-}
-
 static inline bool ipa_is_client_handle_valid(u32 clnt_hdl)
 {
 	return false;
@@ -2498,5 +2549,58 @@ static inline int ipa_uc_dereg_rdyCB(void)
 	return -EPERM;
 }
 
-#endif /* _IPA_H_ */
+static inline int ipa_copy_hdr(struct ipa_ioc_copy_hdr *copy)
+{
+	return -EPERM;
+}
 
+static inline int ipa_register_pull_msg(struct ipa_msg_meta *meta,
+		ipa_msg_pull_fn callback)
+{
+	return -EPERM;
+}
+
+static inline int ipa_register_intf_ext(const char *name,
+		const struct ipa_tx_intf *tx,
+		const struct ipa_rx_intf *rx,
+		const struct ipa_ext_intf *ext)
+{
+	return -EPERM;
+}
+
+static inline int ipa_tx_dp_mul(enum ipa_client_type dst,
+		struct ipa_tx_data_desc *data_desc)
+{
+	return -EPERM;
+}
+
+static inline u16 ipa_get_smem_restr_bytes(void)
+{
+	return 0;
+}
+
+static inline int ipa_rm_create_resource(
+		struct ipa_rm_create_params *create_params)
+{
+	return -EPERM;
+}
+
+static inline int ipa_rm_register(enum ipa_rm_resource_name resource_name,
+		struct ipa_rm_register_params *reg_params)
+{
+	return -EPERM;
+}
+
+static inline int ipa_create_wdi_mapping(u32 num_buffers,
+		struct ipa_wdi_buffer_info *info)
+{
+	return -EPERM;
+}
+
+static inline int ipa_release_wdi_mapping(u32 num_buffers,
+		struct ipa_wdi_buffer_info *info)
+{
+	return -EPERM;
+}
+
+#endif /* _IPA_H_ */

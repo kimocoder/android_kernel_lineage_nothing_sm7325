@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _IPA_UC_OFFLOAD_H_
@@ -46,8 +47,8 @@ struct ipa_hdr_info {
  * @notify:	callback for exception/embedded packets
  * @priv: callback cookie
  * @hdr_info: header information
- * @meta_data: meta data if any
- * @meta_data_mask: meta data mask
+ * @meta_data: metadata if any
+ * @meta_data_mask: metadata mask
  * @proto: uC offload protocol type
  * @alt_dst_pipe: alternate routing output pipe
  */

@@ -16,11 +16,13 @@ enum cb_reason {
 };
 
 struct mhi_dev_client_cb_reason {
+	uint32_t		vf_id;
 	uint32_t		ch_id;
 	enum cb_reason		reason;
 };
 
 struct mhi_dev_client {
+	uint32_t			vf_id;
 	struct list_head		list;
 	struct mhi_dev_channel		*channel;
 	void (*event_trigger)(struct mhi_dev_client_cb_reason *cb);
@@ -60,6 +62,7 @@ struct mhi_req {
 	size_t                          len;
 	size_t                          transfer_len;
 	uint32_t                        rd_offset;
+	u32                             vf_id;
 	struct mhi_dev_client           *client;
 	struct list_head                list;
 	union mhi_dev_ring_element_type *el;
@@ -211,12 +214,29 @@ bool mhi_dev_channel_has_pending_write(struct mhi_dev_client *handle);
 int mhi_ctrl_state_info(uint32_t idx, uint32_t *info);
 
 /**
+ * mhi_vf_ctrl_state_info() - Provide MHI channel state info in a MHI instance
+ * @vf_id:  MHI instance id. For Physical MHI it will be zero.
+ * @idx:    Channel index
+ * @info:   Channel state info
+ */
+int mhi_vf_ctrl_state_info(u32 vf_id, uint32_t idx, uint32_t *info);
+
+/**
  * mhi_register_state_cb() - Clients can register and receive callback after
  *		MHI channel is connected or disconnected.
  */
 int mhi_register_state_cb(void (*mhi_state_cb)
 			(struct mhi_dev_client_cb_data *cb_data), void *data,
 			enum mhi_client_channel channel);
+
+/**
+ * mhi_vf_register_state_cb() - Clients can register and receive callback after
+ *		MHI channel is connected or disconnected for a specific VF.
+ */
+int mhi_vf_register_state_cb(void (*mhi_state_cb)
+			(struct mhi_dev_client_cb_data *cb_data), void *data,
+			enum mhi_client_channel channel,
+			unsigned int vf_id);
 
 #else
 static inline int mhi_dev_open_channel(uint32_t chan_id,
@@ -255,11 +275,24 @@ static inline bool mhi_dev_channel_has_pending_write
 static inline int mhi_ctrl_state_info(uint32_t idx, uint32_t *info)
 {
 	return -EINVAL;
+}
+
+static inline int mhi_vf_ctrl_state_info(u32 vf_id, uint32_t idx, uint32_t *info)
+{
+	return -EINVAL;
 };
 
 static inline int mhi_register_state_cb(void (*mhi_state_cb)
 			(struct mhi_dev_client_cb_data *cb_data), void *data,
 			enum mhi_client_channel channel)
+{
+	return -EINVAL;
+}
+
+static inline int mhi_vf_register_state_cb(void (*mhi_state_cb)
+			(struct mhi_dev_client_cb_data *cb_data), void *data,
+			enum mhi_client_channel channel,
+			unsigned int vf_id)
 {
 	return -EINVAL;
 };

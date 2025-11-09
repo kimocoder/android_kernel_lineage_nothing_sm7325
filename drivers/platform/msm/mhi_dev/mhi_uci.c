@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2015,2017-2021, The Linux Foundation. All rights reserved.*/
+/*
+ * Copyright (c) 2015,2017-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -34,8 +37,8 @@
 #define DEVICE_NAME			"mhi"
 #define MAX_DEVICE_NAME_SIZE		80
 
-#define MHI_UCI_ASYNC_READ_TIMEOUT	msecs_to_jiffies(100)
-#define MHI_UCI_ASYNC_WRITE_TIMEOUT	msecs_to_jiffies(100)
+#define MHI_UCI_ASYNC_READ_TIMEOUT	msecs_to_jiffies(200)
+#define MHI_UCI_ASYNC_WRITE_TIMEOUT	msecs_to_jiffies(200)
 #define MHI_UCI_AT_CTRL_READ_TIMEOUT	msecs_to_jiffies(1000)
 #define MHI_UCI_WRITE_REQ_AVAIL_TIMEOUT msecs_to_jiffies(1000)
 
@@ -191,7 +194,9 @@ static const struct chan_attr mhi_chan_attr_table[] = {
 		NULL,
 		NULL,
 		false,
-		true
+		true,
+		false,
+		50
 	},
 	{
 		MHI_CLIENT_QMI_OUT,
@@ -412,6 +417,16 @@ struct mhi_uci_ctxt_t {
 
 #define CHAN_TO_CLIENT(_CHAN_NR) (_CHAN_NR / 2)
 #define CLIENT_TO_CHAN(_CLIENT_NR) (_CLIENT_NR * 2)
+
+#define uci_log_ratelimit(_msg_lvl, _msg, ...) do { \
+	if (_msg_lvl >= mhi_uci_msg_lvl) { \
+		pr_err_ratelimited("[%s] "_msg, __func__, ##__VA_ARGS__); \
+	} \
+	if (mhi_uci_ipc_log && (_msg_lvl >= mhi_uci_ipc_log_lvl)) { \
+		ipc_log_string(mhi_uci_ipc_log,                     \
+			"[%s] " _msg, __func__, ##__VA_ARGS__);     \
+	} \
+} while (0)
 
 #define uci_log(_msg_lvl, _msg, ...) do { \
 	if (_msg_lvl >= mhi_uci_msg_lvl) { \
@@ -899,7 +914,7 @@ static int mhi_uci_read_async(struct uci_client *uci_handle, int *bytes_avail)
 
 	*bytes_avail = mhi_dev_read_channel(ureq);
 	if (*bytes_avail < 0) {
-		uci_log(UCI_DBG_ERROR, "Failed to read channel ret %dlu\n",
+		uci_log_ratelimit(UCI_DBG_ERROR, "Failed to read channel ret %dlu\n",
 			*bytes_avail);
 		if (uci_handle->in_chan == MHI_CLIENT_ADB_OUT) {
 			uci_log(UCI_DBG_ERROR,
@@ -994,7 +1009,7 @@ static int open_client_mhi_channels(struct uci_client *uci_client)
 	int rc = 0;
 
 	if (!mhi_uci_are_channels_connected(uci_client)) {
-		uci_log(UCI_DBG_ERROR, "Channels are not connected\n");
+		uci_log(UCI_DBG_VERBOSE, "Channels are not connected\n");
 		return -ENODEV;
 	}
 
@@ -1337,7 +1352,7 @@ static int __mhi_uci_client_read(struct uci_client *uci_handle,
 
 	while (!uci_handle->pkt_loc) {
 		if (!mhi_uci_are_channels_connected(uci_handle)) {
-			uci_log(UCI_DBG_ERROR, "Channels are not connected\n");
+			uci_log_ratelimit(UCI_DBG_ERROR, "Channels are not connected\n");
 			return -ENODEV;
 		}
 
@@ -1458,7 +1473,7 @@ static ssize_t mhi_uci_client_read(struct file *file, char __user *ubuf,
 error:
 	mutex_unlock(mutex);
 
-	uci_log(UCI_DBG_ERROR, "Returning %d\n", ret_val);
+	uci_log_ratelimit(UCI_DBG_ERROR, "Returning %d\n", ret_val);
 	return ret_val;
 }
 
@@ -1504,6 +1519,11 @@ static ssize_t mhi_uci_client_write(struct file *file,
 	cur_txfr_len = count;
 
 	if (!tre_len)
+		/*
+		 * If the requested transfer size is more that the TRE size, then split
+		 * the write into multiple transfers, each transfer with a size equal to
+		 * TRE size (except the last one).
+		 */
 		uci_log(UCI_DBG_ERROR, "tre_len is 0, not updated yet\n");
 	else if (count > tre_len) {
 		uci_log(UCI_DBG_DBG, "Write req size (%d) > tre_len (%d)\n", count, tre_len);
@@ -1559,9 +1579,15 @@ static ssize_t mhi_uci_client_write_iter(struct kiocb *iocb,
 	unsigned long memcpy_result;
 	int rc = 0, tre_len, cur_rc = 0, count_left, cur_txfr_len;
 	struct file *file = iocb->ki_filp;
-	ssize_t count = iov_iter_count(buf);
+	ssize_t count;
 
-	if (!file || !buf || !count || !file->private_data) {
+	if (!buf) {
+		uci_log(UCI_DBG_DBG, "Invalid access to write-iter, buf is NULL\n");
+		return -EINVAL;
+	}
+	count = iov_iter_count(buf);
+
+	if (!file || !count || !file->private_data) {
 		uci_log(UCI_DBG_DBG, "Invalid access to write-iter\n");
 		return -EINVAL;
 	}
@@ -1594,6 +1620,11 @@ static ssize_t mhi_uci_client_write_iter(struct kiocb *iocb,
 	cur_txfr_len = count;
 
 	if (!tre_len)
+		/*
+		 * If the requested transfer size is more that the TRE size, then split
+		 * the write into multiple transfers, each transfer with a size equal to
+		 * TRE size (except the last one).
+		 */
 		uci_log(UCI_DBG_ERROR, "tre_len is 0, not updated yet\n");
 	else if (count > tre_len) {
 		uci_log(UCI_DBG_DBG, "Write req size (%d) > tre_len (%d)\n", count, tre_len);
@@ -1663,7 +1694,7 @@ void mhi_uci_chan_state_notify(struct mhi_dev *mhi,
 	int rc;
 
 	if (ch_id < 0 || ch_id >= MHI_MAX_SOFTWARE_CHANNELS) {
-		uci_log(UCI_DBG_ERROR, "Invalid ch_id:%d\n", ch_id);
+		uci_log(UCI_DBG_VERBOSE, "Invalid ch_id:%d\n", ch_id);
 		return;
 	}
 
@@ -1693,7 +1724,7 @@ void mhi_uci_chan_state_notify(struct mhi_dev *mhi,
 		return;
 	}
 
-	rc = kobject_uevent_env(&mhi->dev->kobj, KOBJ_CHANGE, buf);
+	rc = kobject_uevent_env(&mhi->mhi_hw_ctx->dev->kobj, KOBJ_CHANGE, buf);
 	if (rc)
 		uci_log(UCI_DBG_ERROR,
 				"Sending uevent failed for ch_id:%d\n", ch_id);

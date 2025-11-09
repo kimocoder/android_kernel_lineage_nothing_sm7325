@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2015,2017-2021, The Linux Foundation. All rights reserved.*/
+/*
+ * Copyright (c) 2015, 2017-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
 
 #include <linux/kernel.h>
 #include <linux/of.h>
@@ -101,7 +104,7 @@ static int mhi_dev_mmio_mask_set_chdb_int_a7(struct mhi_dev *dev,
 	chid_idx = chdb_id/32;
 
 	if (chid_idx >= MHI_MASK_ROWS_CH_EV_DB) {
-		mhi_log(MHI_MSG_ERROR, "Invalid ch_id:%d\n", chid_idx);
+		mhi_log(dev->vf_id, MHI_MSG_ERROR, "Invalid ch_id:%d\n", chid_idx);
 		return -EINVAL;
 	}
 
@@ -198,7 +201,7 @@ int mhi_dev_mmio_get_mhi_state(struct mhi_dev *dev, enum mhi_dev_state *state,
 	else
 		*mhi_reset = 0;
 
-	mhi_log(MHI_MSG_VERBOSE, "MHICTRL is 0x%x, reset:%d\n",
+	mhi_log(dev->vf_id, MHI_MSG_VERBOSE, "MHICTRL is 0x%x, reset:%d\n",
 			reg_value, *mhi_reset);
 
 	return 0;
@@ -602,8 +605,7 @@ EXPORT_SYMBOL(mhi_dev_mmio_reset);
 int mhi_dev_restore_mmio(struct mhi_dev *dev)
 {
 	int rc = 0;
-	uint32_t i, reg_cntl_value;
-	void *reg_cntl_addr;
+	uint32_t i;
 
 	if (WARN_ON(!dev))
 		return -EINVAL;
@@ -614,26 +616,19 @@ int mhi_dev_restore_mmio(struct mhi_dev *dev)
 
 	mhi_dev_mmio_mask_erdb_interrupts(dev);
 
-	for (i = 0; i < (MHI_DEV_MMIO_RANGE/4); i++) {
-		reg_cntl_addr = dev->mmio_base_addr +
-				MHI_DEV_MMIO_OFFSET + (i * 4);
-		reg_cntl_value = dev->mmio_backup[i];
-		writel_relaxed(reg_cntl_value, reg_cntl_addr);
-	}
-
 	mhi_dev_mmio_clear_interrupts(dev);
 
 	for (i = 0; i < MHI_MASK_ROWS_CH_EV_DB; i++) {
 		/* Enable channel interrupt whose mask is enabled */
 		if (dev->chdb[i].mask) {
-			mhi_log(MHI_MSG_VERBOSE,
+			mhi_log(dev->vf_id, MHI_MSG_VERBOSE,
 				"Enabling id: %d, chdb mask  0x%x\n",
 							i, dev->chdb[i].mask);
 
 			rc = mhi_dev_mmio_write(dev, MHI_CHDB_INT_MASK_A7_n(i),
 							dev->chdb[i].mask);
 			if (rc) {
-				mhi_log(MHI_MSG_ERROR,
+				mhi_log(dev->vf_id, MHI_MSG_ERROR,
 					"Error writing enable for A7\n");
 				return rc;
 			}
@@ -646,29 +641,12 @@ int mhi_dev_restore_mmio(struct mhi_dev *dev)
 	/*Enable cmdb interrupt*/
 	mhi_dev_mmio_enable_cmdb_interrupt(dev);
 
+	/*Mem barrier to ensure write is visible*/
 	mb();
 
 	return 0;
 }
 EXPORT_SYMBOL(mhi_dev_restore_mmio);
-
-int mhi_dev_backup_mmio(struct mhi_dev *dev)
-{
-	uint32_t i = 0;
-	void __iomem *reg_cntl_addr;
-
-	if (WARN_ON(!dev))
-		return -EINVAL;
-
-	for (i = 0; i < MHI_DEV_MMIO_RANGE/4; i++) {
-		reg_cntl_addr = (void __iomem *) (dev->mmio_base_addr +
-				MHI_DEV_MMIO_OFFSET + (i * 4));
-		dev->mmio_backup[i] = readl_relaxed(reg_cntl_addr);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(mhi_dev_backup_mmio);
 
 int mhi_dev_get_mhi_addr(struct mhi_dev *dev)
 {
@@ -728,10 +706,10 @@ int mhi_dev_mmio_init(struct mhi_dev *dev)
 
 	mhi_dev_mmio_read(dev, ERDBOFF, &dev->cfg.erdb_offset);
 
-	dev->cfg.channels = NUM_CHANNELS;
-
-	if (!dev->mmio_initialized)
+	if (!dev->is_flashless)
 		mhi_dev_mmio_reset(dev);
+
+	dev->cfg.channels = NUM_CHANNELS;
 
 	return 0;
 }
@@ -775,9 +753,9 @@ int mhi_dev_dump_mmio(struct mhi_dev *dev)
 
 		mhi_dev_mmio_read(dev, offset+0xC, &r4);
 
-		offset += 0x10;
-		pr_debug("0x%08x 0x%08x 0x%08x 0x%08x 0x%08x\n",
+		mhi_log(dev->vf_id, MHI_MSG_ERROR, "0x%08x 0x%08x 0x%08x 0x%08x 0x%08x\n",
 				offset, r1, r2, r3, r4);
+		offset += 0x10;
 	}
 
 	return 0;

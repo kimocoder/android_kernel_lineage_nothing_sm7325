@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2015-2018, 2019-2020, The Linux Foundation. All rights reserved.*/
+/*
+ * Copyright (c) 2015-2018, 2019-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ */
 
 /*
  * MSM PCIe PHY endpoint mode
@@ -10,6 +13,10 @@
 
 void ep_pcie_phy_init(struct ep_pcie_dev_t *dev)
 {
+
+	if (dev->rumi)
+		return;
+
 	switch (dev->phy_rev) {
 	case 3:
 		EP_PCIE_DBG(dev,
@@ -36,6 +43,10 @@ void ep_pcie_phy_init(struct ep_pcie_dev_t *dev)
 			"PCIe V%d: PHY V%d: Initializing 5nm QMP phy - 100MHz\n",
 			dev->rev, dev->phy_rev);
 		break;
+	case 8:
+		EP_PCIE_DBG(dev,
+			"PCIe V%d: PHY V%d: Initializing 4nm QMP phy - 100MHz\n",
+			dev->rev, dev->phy_rev);
 	default:
 		EP_PCIE_ERR(dev,
 			"PCIe V%d: Unexpected phy version %d is caught\n",
@@ -148,6 +159,9 @@ void ep_pcie_phy_init(struct ep_pcie_dev_t *dev)
 bool ep_pcie_phy_is_ready(struct ep_pcie_dev_t *dev)
 {
 	u32 offset;
+
+	if (dev->rumi)
+		return true;
 
 	if (dev->phy_status_reg)
 		offset = dev->phy_status_reg;

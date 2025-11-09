@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2018 - 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _IPA_FMWK_H_
@@ -47,7 +47,7 @@ struct ipa_core_data {
 
 	int (*ipa_get_ep_mapping)(enum ipa_client_type client);
 
-	int (*ipa_send_msg)(struct ipa_msg_meta *meta, void *buff,
+	int (*ipa_send_msg)(struct ipa_msg_meta *metadata, void *buff,
 		ipa_msg_free_fn callback);
 
 	void (*ipa_free_skb)(struct ipa_rx_data *data);
@@ -107,8 +107,6 @@ struct ipa_core_data {
 		void *user_data3);
 
 	int (*ipa_unregister_rmnet_ctl_cb)(void);
-	int (*ipa_get_default_aggr_time_limit)(enum ipa_client_type client,
-		u32 *default_aggr_time_limit);
 	int (*ipa_add_hdr)(struct ipa_ioc_add_hdr *hdrs);
 	int (*ipa_del_hdr)(struct ipa_ioc_del_hdr *hdls);
 	int (*ipa_get_hdr)(struct ipa_ioc_get_hdr *lookup);
@@ -123,7 +121,6 @@ struct ipa_core_data {
 	int (*ipa_disconnect_wdi_pipe)(u32 clnt_hdl);
 	int (*ipa_uc_reg_rdyCB)(struct ipa_wdi_uc_ready_params *param);
 	int (*ipa_uc_dereg_rdyCB)(void);
-
 	int (*ipa_rmnet_ll_xmit)(struct sk_buff *skb);
 
 	int (*ipa_register_rmnet_ll_cb)(
@@ -138,6 +135,8 @@ struct ipa_core_data {
 	int (*ipa_unregister_rmnet_ll_cb)(void);
 	int (*ipa_register_notifier)(void *fn_ptr);
 	int (*ipa_unregister_notifier)(void *fn_ptr);
+	int (*ipa_get_default_aggr_time_limit)(enum ipa_client_type client,
+		u32 *default_aggr_time_limit);
 	int (*ipa_add_socksv5_conn)(struct ipa_socksv5_info *info);
 	int (*ipa_del_socksv5_conn)(uint32_t handle);
 };
@@ -237,6 +236,35 @@ struct ipa_wdi3_data {
 
 	int (*ipa_wdi_release_smmu_mapping_per_inst)(u32 hdl, u32 num_buffers,
 		struct ipa_wdi_buffer_info *info);
+
+	int (*ipa_wdi_opt_dpath_register_flt_cb_per_inst)(
+		ipa_wdi_hdl_t hdl,
+		ipa_wdi_opt_dpath_flt_rsrv_cb flt_rsrv_cb,
+		ipa_wdi_opt_dpath_flt_rsrv_rel_cb flt_rsrv_rel_cb,
+		ipa_wdi_opt_dpath_flt_add_cb flt_add_cb,
+		ipa_wdi_opt_dpath_flt_rem_cb flt_rem_cb);
+
+	int (*ipa_wdi_opt_dpath_notify_flt_rsvd_per_inst)(ipa_wdi_hdl_t hdl,
+		bool is_success);
+
+	int (*ipa_wdi_opt_dpath_notify_flt_rlsd_per_inst)(ipa_wdi_hdl_t hdl,
+		bool is_success);
+
+	int (*ipa_wdi_opt_dpath_rsrv_filter_req)(
+		struct ipa_wlan_opt_dp_rsrv_filter_req_msg_v01 *req,
+		struct ipa_wlan_opt_dp_rsrv_filter_resp_msg_v01 *resp);
+
+	int (*ipa_wdi_opt_dpath_add_filter_req)(
+		struct ipa_wlan_opt_dp_add_filter_req_msg_v01 *req,
+		struct ipa_wlan_opt_dp_add_filter_complt_ind_msg_v01 *ind);
+
+	int (*ipa_wdi_opt_dpath_remove_filter_req)(
+			struct ipa_wlan_opt_dp_remove_filter_req_msg_v01 *req,
+			struct ipa_wlan_opt_dp_remove_filter_complt_ind_msg_v01 *ind);
+
+	int (*ipa_wdi_opt_dpath_remove_all_filter_req)(
+			struct ipa_wlan_opt_dp_remove_all_filter_req_msg_v01 *req,
+			struct ipa_wlan_opt_dp_remove_all_filter_resp_msg_v01 *resp);
 };
 
 struct ipa_qdss_data {
@@ -368,6 +396,24 @@ struct ipa_eth_data {
 
 	bool (*ipa_eth_client_exist)(
 		enum ipa_eth_client_type eth_client_type, int inst_id);
+
+	int (*ipa_eth_get_config_type)(
+		enum ipa_eth_client_type client_type,
+		int inst_id,
+		struct ipa_eth_config *eth_config);
+	int (*ipa_eth_qos_get_num_pipes)(
+		u8 inst_id, u8 *num_pipes, enum ipa_eth_pipe_direction dir);
+	int (*ipa_eth_qos_get_qos_info)
+	(
+		u8 inst_id,
+		u8 idx,
+		struct ipa_eth_qos_info *info,
+		enum ipa_eth_pipe_direction dir
+	);
+
+	int (*ipa_eth_client_enable_pipes)(struct ipa_eth_client *client);
+	int (*ipa_eth_client_disable_pipes)(struct ipa_eth_client *client);
+
 };
 
 #if IS_ENABLED(CONFIG_IPA3)
@@ -386,9 +432,9 @@ int ipa_fmwk_register_ipa_mhi(const struct ipa_mhi_data *in);
 
 int ipa_fmwk_register_ipa_wigig(const struct ipa_wigig_data *in);
 
-int ipa_fmwk_register_ipa_eth(const struct ipa_eth_data *in);
-
 int ipa_fmwk_register_ipa_qdss(const struct ipa_qdss_data *in);
+
+int ipa_fmwk_register_ipa_eth(const struct ipa_eth_data *in);
 
 int ipa_get_default_aggr_time_limit(enum ipa_client_type client,
 	u32 *default_aggr_time_limit);
