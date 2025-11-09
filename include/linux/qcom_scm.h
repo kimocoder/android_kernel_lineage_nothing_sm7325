@@ -243,10 +243,26 @@ static inline void qcom_scm_disable_sdi(void) {}
 static inline u32 qcom_scm_set_remote_state(u32 state, u32 id)
 		{ return -ENODEV; }
 static inline int qcom_scm_spin_cpu(void) { return -ENODEV; }
+
+#ifndef CONFIG_QCOM_SCM
 static inline void qcom_scm_set_download_mode(enum qcom_download_mode mode,
-		phys_addr_t tcsr_boot_misc) {}
+                phys_addr_t tcsr_boot_misc)
+{
+    /* no-op stub when QCOM_SCM is disabled */
+}
+
 static inline int qcom_scm_get_download_mode(unsigned int *mode,
-		phys_addr_t tcsr_boot_misc) {}
+                phys_addr_t tcsr_boot_misc)
+{
+    return -ENODEV;
+}
+
+static inline phys_addr_t qcom_scm_tcsr_boot_misc(void)
+{
+    return 0;
+}
+#endif /* CONFIG_QCOM_SCM */
+
 static inline int qcom_scm_config_cpu_errata(void)
 		{ return -ENODEV; }
 static inline void qcom_scm_phy_update_scm_level_shifter(u32 val) {}
