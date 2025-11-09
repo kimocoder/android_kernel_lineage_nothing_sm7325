@@ -3658,6 +3658,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 	}
 	while (count < limit) {
 		unsigned int buf1_len = 0, buf2_len = 0;
+		unsigned int prev_len = 0, sec_len = 0;
 		enum pkt_hash_types hash_type;
 		struct stmmac_rx_buffer *buf;
 		struct dma_desc *np, *p;
@@ -3732,10 +3733,12 @@ read_again:
 		if (buf->sec_page)
 			prefetch(page_address(buf->sec_page));
 
+		prev_len = len;
 		buf1_len = stmmac_rx_buf1_len(priv, p, status, len);
 		len += buf1_len;
 		buf2_len = stmmac_rx_buf2_len(priv, p, status, len);
 		len += buf2_len;
+		sec_len = buf2_len;
 
 		/* ACS is set; GMAC core strips PAD/FCS for IEEE 802.3
 		 * Type frames (LLC/LLC-SNAP)

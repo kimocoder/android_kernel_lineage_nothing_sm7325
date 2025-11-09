@@ -2,6 +2,7 @@
 /* Copyright (c) 2016-2021, The Linux Foundation. All rights reserved. */
 
 #include <linux/delay.h>
+#include <linux/firmware.h>
 #include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/of.h>
