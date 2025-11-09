@@ -22,7 +22,6 @@
 *.elf
 *.gcno
 *.gz
-*.i
 *.ko
 *.lex.c
 *.ll
@@ -153,3 +152,10 @@ arch/arm/boot/dts/vendor
 #Ignoring Android.bp link file
 #
 Android.bp
+
+# kimocoder
+*.rej
+*.orig
+*.md
+*.sh
+*.log
